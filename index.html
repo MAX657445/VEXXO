@@ -177,7 +177,7 @@ h1 { font-size: 34px; line-height: 1.1; font-weight: 700; letter-spacing: -0.02e
   </div>
 
   <p class="summary" id="summary"></p>
-  <p class="weeklabel" id="weeklabel"></p>
+  <p class="weeklabel" id="weeklabel" hidden></p>
   <div id="days"></div>
 
   <p class="foot">Расписание внесено вручную. Актуальный вариант на <a href="https://rasp.pskgu.ru/k/groups/302s.html">rasp.pskgu.ru</a>.</p>
@@ -197,15 +197,12 @@ h1 { font-size: 34px; line-height: 1.1; font-weight: 700; letter-spacing: -0.02e
     2: ['10:15', '11:45'],
     3: ['12:30', '14:00'],
     4: ['14:15', '15:45'],
-    5: ['16:00', '17:30']
+    5: ['16:00', '17:30'],
+    6: ['18:00', '19:30']
   };
 
-  var WEEK = [
-    { date: '2026-10-13', name: 'Вторник' },
-    { date: '2026-10-14', name: 'Среда' },
-    { date: '2026-10-15', name: 'Четверг' },
-    { date: '2026-10-16', name: 'Пятница' }
-  ];
+  var DAY_NAMES = ['Воскресенье', 'Понедельник', 'Вторник', 'Среда', 'Четверг', 'Пятница', 'Суббота'];
+  var DAY_SHORT = ['вс', 'пн', 'вт', 'ср', 'чт', 'пт', 'сб'];
 
   // [pair number, subject, room]
   var SCHEDULE = {
@@ -215,8 +212,14 @@ h1 { font-size: 34px; line-height: 1.1; font-weight: 700; letter-spacing: -0.02e
       '2026-10-15': [[1, 'САПР', '1-28'], [2, 'Архитектура', '2-31'], [3, 'Архитектура', '2-31']],
       '2026-10-16': [[3, 'ОБЖ', '1-24а'], [4, 'ОБЖ', '1-23']]
     },
-    vitya: null,
-    ulya: null
+    ulya: {
+      '2026-10-19': [[4, 'Архитектура', '2-31'], [5, 'ОБЖ', '1-39']],
+      '2026-10-20': [[4, 'Архитектура', '2-31'], [5, 'Архитектура', '2-31'], [6, 'ОБЖ', '2-5']],
+      '2026-10-21': [[1, 'САПР', '1-28'], [2, 'САПР', '1-28'], [3, 'САПР', '2-6'], [4, 'Философия', '2-31']],
+      '2026-10-22': [[1, 'САПР', '1-28'], [2, 'САПР', '2-7'], [3, 'Архитектура', '2-31']],
+      '2026-10-23': [[3, 'Английский', '1-5'], [4, 'Архитектура', '2-31'], [5, 'Философия', '2-14'], [6, 'Физра', 'С3']]
+    },
+    vitya: null
   };
 
   var MONTHS = ['января', 'февраля', 'марта', 'апреля', 'мая', 'июня', 'июля', 'августа', 'сентября', 'октября', 'ноября', 'декабря'];
@@ -238,6 +241,17 @@ h1 { font-size: 34px; line-height: 1.1; font-weight: 700; letter-spacing: -0.02e
   }
   function toMin(s) { var p = s.split(':'); return parseInt(p[0], 10) * 60 + parseInt(p[1], 10); }
   function longDate(iso) { var p = iso.split('-'); return parseInt(p[2], 10) + ' ' + MONTHS[parseInt(p[1], 10) - 1]; }
+  function dow(iso) { return new Date(iso + 'T12:00:00Z').getUTCDay(); }
+  function mondayOf(iso) {
+    var d = new Date(iso + 'T12:00:00Z');
+    d.setUTCDate(d.getUTCDate() - ((d.getUTCDay() + 6) % 7));
+    return d.toISOString().slice(0, 10);
+  }
+  function weekLabel(dates) {
+    var a = dates[0], b = dates[dates.length - 1];
+    var ma = parseInt(a.slice(5, 7), 10), mb = parseInt(b.slice(5, 7), 10);
+    return 'Неделя ' + parseInt(a.slice(8), 10) + (ma !== mb ? ' ' + MONTHS[ma - 1] : '') + '–' + parseInt(b.slice(8), 10) + ' ' + MONTHS[mb - 1];
+  }
   function shortDate(iso) { var p = iso.split('-'); return p[2] + '.' + p[1]; }
   function pl(n, one, few, many) {
     var m10 = n % 10, m100 = n % 100;
@@ -266,20 +280,37 @@ h1 { font-size: 34px; line-height: 1.1; font-weight: 700; letter-spacing: -0.02e
       return;
     }
 
+    var dates = Object.keys(data).sort();
+
     var todayPairs = data[now.date];
     if (todayPairs && todayPairs.length) {
       var first = PAIR_TIMES[todayPairs[0][0]][0];
       var last = PAIR_TIMES[todayPairs[todayPairs.length - 1][0]][1];
       summary.innerHTML = 'Сегодня, ' + longDate(now.date) + ': <strong>' + todayPairs.length + ' ' + pl(todayPairs.length, 'пара', 'пары', 'пар') + '</strong>, <span class="mono">' + first + '–' + last + '</span>';
     } else {
-      summary.innerHTML = 'Сегодня, ' + longDate(now.date) + ': <strong>пар нет</strong>';
+      var next = null;
+      for (var n = 0; n < dates.length; n++) if (dates[n] > now.date && data[dates[n]].length) { next = dates[n]; break; }
+      summary.innerHTML = 'Сегодня, ' + longDate(now.date) + ': <strong>пар нет</strong>' +
+        (next ? '. Следующие — ' + DAY_SHORT[dow(next)] + ', ' + longDate(next) + ', с <span class="mono">' + PAIR_TIMES[data[next][0][0]][0] + '</span>' : '');
     }
+    weeklabel.textContent = '';
 
-    weeklabel.textContent = 'Неделя ' + parseInt(WEEK[0].date.slice(8), 10) + '–' + parseInt(WEEK[WEEK.length - 1].date.slice(8), 10) + ' ' + MONTHS[parseInt(WEEK[0].date.slice(5, 7), 10) - 1];
+    // Group dates by week; hide weeks that are fully in the past (keep the last one if nothing else is left)
+    var weeks = [], byMon = {};
+    for (var w = 0; w < dates.length; w++) {
+      var mon = mondayOf(dates[w]);
+      if (!byMon[mon]) { byMon[mon] = []; weeks.push(byMon[mon]); }
+      byMon[mon].push(dates[w]);
+    }
+    var shown = weeks.filter(function (wk) { return wk[wk.length - 1] >= now.date; });
+    if (!shown.length && weeks.length) shown = [weeks[weeks.length - 1]];
 
     var html = '';
-    for (var d = 0; d < WEEK.length; d++) {
-      var day = WEEK[d];
+    for (var wi = 0; wi < shown.length; wi++) {
+      var wk = shown[wi];
+      html += '<p class="weeklabel">' + weekLabel(wk) + '</p>';
+    for (var d = 0; d < wk.length; d++) {
+      var day = { date: wk[d], name: DAY_NAMES[dow(wk[d])] };
       var pairs = data[day.date] || [];
       var isToday = day.date === now.date;
       var isPast = day.date < now.date;
@@ -305,6 +336,7 @@ h1 { font-size: 34px; line-height: 1.1; font-weight: 700; letter-spacing: -0.02e
         html += '</ol>';
       }
       html += '</section>';
+    }
     }
     days.innerHTML = html;
   }

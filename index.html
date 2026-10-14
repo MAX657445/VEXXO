@@ -732,12 +732,12 @@ body:has(#lock:not([hidden])) { padding: 0; }
         if (IMG_RE.test(v.filename)) h += '<a href="' + esc(v.url) + '" target="_blank" rel="noopener"><img class="prev" loading="lazy" src="' + esc(v.url) + '" alt="' + esc(v.title) + '"></a>';
         h += '<div class="dg-meta">' + verMeta(v) + '</div><div class="dg-acts">';
         if (PDF_RE.test(v.filename)) h += '<button type="button" class="btn small" data-prev="' + esc(v.url) + '">Просмотр</button>';
-        h += '<a class="btn small" href="' + esc(v.url) + '" target="_blank" rel="noopener">Открыть</a><a class="btn small" href="' + esc(dlUrl(v)) + '">Скачать</a>' +
+        h += '<a class="btn small" href="' + esc(v.url) + '" target="_blank" rel="noopener">Открыть</a><a class="btn small" href="' + esc(dlUrl(v)) + '" data-dl="' + esc(v.url) + '" data-name="' + esc(v.filename || v.title) + '">Скачать</a>' +
           (edit ? '<button type="button" class="x" data-del-dr="' + v.id + '" aria-label="Удалить файл">✕</button>' : '') + '</div><div class="pdfbox" hidden></div>';
         if (g.length > 1) {
           h += '<details class="older"><summary>Предыдущие версии (' + (g.length - 1) + ')</summary>';
           g.slice(1).forEach(function (o) {
-            h += '<div class="ver"><span class="t">' + verMeta(o) + '</span><span class="dg-acts"><a class="dl" href="' + esc(o.url) + '" target="_blank" rel="noopener">Открыть</a><a class="dl" href="' + esc(dlUrl(o)) + '">Скачать</a>' +
+            h += '<div class="ver"><span class="t">' + verMeta(o) + '</span><span class="dg-acts"><a class="dl" href="' + esc(o.url) + '" target="_blank" rel="noopener">Открыть</a><a class="dl" href="' + esc(dlUrl(o)) + '" data-dl="' + esc(o.url) + '" data-name="' + esc(o.filename || o.title) + '">Скачать</a>' +
               (edit ? '<button type="button" class="x" data-del-dr="' + o.id + '" aria-label="Удалить файл">✕</button>' : '') + '</span></div>';
           });
           h += '</details>';
@@ -850,12 +850,26 @@ body:has(#lock:not([hidden])) { padding: 0; }
     });
   }
 
+  // Скачивание: файл забирается и сохраняется под своим именем (заголовок «скачать» хранилище не отдаёт). Если не вышло, открываем ссылку.
+  async function saveFile(a) {
+    var url = a.getAttribute('data-dl'), name = a.getAttribute('data-name') || 'file', old = a.textContent;
+    a.textContent = 'Скачиваю…';
+    try {
+      var r = await fetch(url); if (!r.ok) throw new Error('http');
+      var b = await r.blob(), u = URL.createObjectURL(b), x = document.createElement('a');
+      x.href = u; x.download = name; document.body.appendChild(x); x.click(); x.remove();
+      setTimeout(function () { URL.revokeObjectURL(u); }, 5000);
+    } catch (err) { window.open(url, '_blank', 'noopener'); }
+    a.textContent = old;
+  }
   function render() {
     if (view === 'cal') renderCal(); else if (view === 'me') renderMe(); else renderPerson(view);
   }
   $('view').addEventListener('click', function (e) {
     var v = e.target.closest('[data-vote]'), d = e.target.closest('[data-del-ev]'), dr = e.target.closest('[data-del-dr]'),
         sc = e.target.closest('[data-del-sc]'), ed = e.target.closest('[data-edit]'), ec = e.target.closest('[data-edit-cancel]'), pv = e.target.closest('[data-prev]');
+    var dl = e.target.closest('[data-dl]');
+    if (dl) { e.preventDefault(); saveFile(dl); return; }
     if (pv) {
       var box = pv.parentNode.parentNode.querySelector('.pdfbox');
       if (box.hidden) { box.innerHTML = '<iframe title="Просмотр" loading="lazy" src="' + esc(pv.getAttribute('data-prev')) + '"></iframe>'; box.hidden = false; pv.textContent = 'Скрыть'; }

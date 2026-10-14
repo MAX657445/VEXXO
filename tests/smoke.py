@@ -69,6 +69,8 @@ with sync_playwright() as p:
     check('версии одного чертежа в одной карточке', pg.locator('.dgroup').count() == 2 and 'Предыдущие версии (1)' in pg.inner_text('#view'))
     pg.fill('#dr-q', 'фасад'); check('поиск прячет лишнее', pg.locator('.dgroup:visible').count() == 1)
     pg.fill('#dr-q', '')
+    with pg.expect_download(timeout=5000) as dl_info: pg.click('[data-dl]')
+    check('скачивание сохраняет файл под своим именем', dl_info.value.suggested_filename == 'plan2.pdf')
     pg.click('[data-prev]'); check('просмотр PDF открывает iframe', pg.locator('.pdfbox iframe').count() == 1)
     pg.screenshot(path=f'{SHOTS}/draw.png', full_page=True)
     pg.set_input_files('[data-dr-form="sapr"] input[type=file]', {'name': 'новый.pdf', 'mimeType': 'application/pdf', 'buffer': b'%PDF-1.4 test'})

@@ -160,6 +160,43 @@ h1 { font-size: 34px; line-height: 1.1; font-weight: 700; letter-spacing: -0.02e
 .foot a { color: var(--accent); }
 
 @media (prefers-reduced-motion: reduce) { .who button { transition: none; } }
+
+/* Чат с Claude: плавающая кнопка и панель */
+.chat-fab {
+  position: fixed;
+  right: max(16px, env(safe-area-inset-right, 0px));
+  bottom: calc(16px + env(safe-area-inset-bottom, 0px));
+  z-index: 20;
+  font: inherit; font-weight: 700; font-size: 15px;
+  background: var(--accent); color: var(--on-accent);
+  border: none; border-radius: 999px; padding: 12px 18px; cursor: pointer;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.25);
+}
+.chat-fab[hidden], .chat-panel[hidden] { display: none; }
+.chat-fab:focus-visible, .chat-panel button:focus-visible, .chat-panel textarea:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.chat-panel {
+  position: fixed; z-index: 30;
+  right: max(16px, env(safe-area-inset-right, 0px));
+  bottom: calc(16px + env(safe-area-inset-bottom, 0px));
+  width: min(400px, calc(100vw - 32px));
+  height: min(560px, calc(100% - 32px - env(safe-area-inset-bottom, 0px)));
+  display: flex; flex-direction: column; min-width: 0;
+  background: var(--surface); color: var(--ink);
+  border: 1px solid var(--line); border-radius: 14px; overflow: hidden;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
+}
+.chat-head { display: flex; align-items: center; justify-content: space-between; gap: 8px; padding: 12px 14px; border-bottom: 1px solid var(--line); }
+.chat-head strong { font-size: 16px; }
+.chat-head button { font: inherit; background: none; border: 1px solid var(--line); color: var(--muted); border-radius: 8px; padding: 4px 10px; cursor: pointer; }
+.chat-log { flex: 1; min-height: 0; overflow-y: auto; display: flex; flex-direction: column; gap: 10px; padding: 14px; }
+.chat-msg { max-width: 88%; padding: 9px 12px; border-radius: 14px; white-space: pre-wrap; overflow-wrap: anywhere; font-size: 15px; }
+.chat-msg.ai { align-self: flex-start; background: var(--tint); border-bottom-left-radius: 4px; }
+.chat-msg.me { align-self: flex-end; background: var(--accent); color: var(--on-accent); border-bottom-right-radius: 4px; }
+.chat-msg.err { color: var(--muted); font-style: italic; }
+.chat-form { display: flex; gap: 8px; align-items: flex-end; padding: 10px 12px; border-top: 1px solid var(--line); }
+.chat-form textarea { flex: 1; min-width: 0; resize: none; max-height: 120px; font: inherit; font-size: 15px; line-height: 1.4; color: var(--ink); background: var(--bg); border: 1px solid var(--line); border-radius: 10px; padding: 8px 10px; }
+.chat-form button { font: inherit; font-weight: 700; background: var(--accent); color: var(--on-accent); border: none; border-radius: 10px; padding: 9px 14px; cursor: pointer; }
+.chat-form button:disabled { opacity: 0.5; cursor: default; }
 </style>
 
 </head>
@@ -352,6 +389,86 @@ h1 { font-size: 34px; line-height: 1.1; font-weight: 700; letter-spacing: -0.02e
 
   render();
   setInterval(render, 60000);
+})();
+</script>
+
+<button type="button" class="chat-fab" id="chat-fab" hidden aria-controls="chat-panel" aria-expanded="false">Спросить Claude</button>
+<section class="chat-panel" id="chat-panel" hidden aria-label="Чат с Claude">
+  <div class="chat-head"><strong>Чат с Claude</strong><span><button type="button" id="chat-new">Новый</button> <button type="button" id="chat-close" aria-label="Закрыть чат">✕</button></span></div>
+  <div class="chat-log" id="chat-log" aria-live="polite"></div>
+  <form class="chat-form" id="chat-form">
+    <textarea id="chat-input" rows="1" maxlength="2000" placeholder="Напиши вопрос…" aria-label="Вопрос"></textarea>
+    <button type="submit" id="chat-send">Отправить</button>
+  </form>
+</section>
+
+<script>
+(function () {
+  // Адрес Worker из папки worker/ (см. README). Пока пусто, кнопка чата скрыта.
+  var CHAT_API_URL = '';
+
+  if (!CHAT_API_URL) return;
+
+  var fab = document.getElementById('chat-fab'), panel = document.getElementById('chat-panel'),
+      log = document.getElementById('chat-log'), form = document.getElementById('chat-form'),
+      input = document.getElementById('chat-input'), send = document.getElementById('chat-send');
+  var history = [], busy = false;
+  var GREETING = 'Привет! Я Claude. Задай любой вопрос.';
+
+  function add(cls, text) {
+    var d = document.createElement('div');
+    d.className = 'chat-msg ' + cls;
+    d.textContent = text;
+    log.appendChild(d);
+    log.scrollTop = log.scrollHeight;
+    return d;
+  }
+  function reset() { history = []; log.innerHTML = ''; add('ai', GREETING); }
+  function open(v) {
+    panel.hidden = !v; fab.hidden = v;
+    fab.setAttribute('aria-expanded', v ? 'true' : 'false');
+    if (v) input.focus(); else fab.focus();
+  }
+  function grow() { input.style.height = 'auto'; input.style.height = Math.min(input.scrollHeight, 120) + 'px'; }
+
+  async function ask(q) {
+    q = q.trim();
+    if (!q || busy) return;
+    busy = true; send.disabled = true;
+    add('me', q);
+    history.push({ role: 'user', content: q });
+    input.value = ''; grow();
+    var out = add('ai', 'Думаю…');
+    try {
+      var r = await fetch(CHAT_API_URL, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ messages: history.slice(-20) })
+      });
+      if (!r.ok) throw new Error('http ' + r.status);
+      var data = await r.json();
+      if (!data.reply) throw new Error('empty');
+      out.textContent = data.reply;
+      history.push({ role: 'assistant', content: data.reply });
+    } catch (e) {
+      history.pop();
+      out.className = 'chat-msg ai err';
+      out.textContent = 'Не получилось получить ответ. Попробуй ещё раз чуть позже.';
+    }
+    busy = false; send.disabled = false; log.scrollTop = log.scrollHeight; input.focus();
+  }
+
+  fab.hidden = false;
+  reset();
+  fab.addEventListener('click', function () { open(true); });
+  document.getElementById('chat-close').addEventListener('click', function () { open(false); });
+  document.getElementById('chat-new').addEventListener('click', reset);
+  form.addEventListener('submit', function (e) { e.preventDefault(); ask(input.value); });
+  input.addEventListener('input', grow);
+  input.addEventListener('keydown', function (e) {
+    if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); ask(input.value); }
+  });
+  document.addEventListener('keydown', function (e) { if (e.key === 'Escape' && !panel.hidden) open(false); });
 })();
 </script>
 </body>

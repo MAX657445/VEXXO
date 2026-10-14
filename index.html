@@ -132,6 +132,7 @@ button:focus-visible, a:focus-visible, textarea:focus-visible, input:focus-visib
 .form { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 10px; padding: 14px; align-items: end; }
 .form label { display: flex; flex-direction: column; gap: 4px; font-size: 13px; color: var(--muted); min-width: 0; }
 .form .wide { grid-column: 1 / -1; }
+.form select { border-radius: 0; }
 .form input, .form select { background: var(--bg); border: 1px solid var(--line); border-radius: 0; padding: 9px 10px; min-width: 0; color: var(--ink); }
 
 .ev { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 12px 16px; padding: 14px 16px; align-items: center; }
@@ -382,7 +383,7 @@ body:has(#lock:not([hidden])) { padding: 0; }
     });
     state.plans = { ulya: [], maxim: [] }; state.tasks = { ulya: [], maxim: [] };
     (d.items || []).forEach(function (i) {
-      (i.kind === 'plan' ? state.plans : state.tasks)[i.owner].push({ id: i.id, text: i.text, when: i.when || '', done: !!i.done });
+      (i.kind === 'plan' ? state.plans : state.tasks)[i.owner].push({ id: i.id, text: i.text, when: i.when || '', done: !!i.done, date: i.date || '', time: i.time ? String(i.time).slice(0, 5) : '', by: i.by || i.owner });
     });
     state.drawings = { sapr: [], arch: [] };
     (d.files || []).forEach(function (f) {
@@ -543,32 +544,40 @@ body:has(#lock:not([hidden])) { padding: 0; }
   }
 
   var BOARD = {
-    plans: { lead: 'Куда пойти и что сделать, с примерным временем.', ph: 'Например: погулять', when: 'Когда примерно: сб, около 18:00', empty: 'Пока нет планов.' },
-    tasks: { lead: 'Что нужно купить или сделать.', ph: 'Например: купить краску для принтера', when: '', empty: 'Пока нет задач.' }
+    plans: { lead: 'Планы по времени: что и когда. Добавлять можно и другому человеку.', empty: 'Пока нет планов.' },
+    tasks: { lead: 'Задачи: что нужно купить или сделать. Добавлять можно и другому человеку.', empty: 'Пока нет задач.' }
   };
   function boardHtml(kind, who) {
-    var c = BOARD[kind], list = state[kind][who], edit = who === state.me;
-    var h = '<p class="lead">' + c.lead + (edit ? '' : ' Здесь можно только смотреть.') + '</p><section class="panel"><ul class="list">';
-    if (!list.length) h += '<li class="empty">' + c.empty + (edit ? ' Добавь первый ниже.' : '') + '</li>';
+    var c = BOARD[kind], list = state[kind][who], me = state.me;
+    var h = '<p class="lead">' + c.lead + '</p><section class="panel"><ul class="list">';
+    if (!list.length) h += '<li class="empty">' + c.empty + ' Добавь первый ниже.</li>';
     list.forEach(function (n) {
-      h += '<li class="item' + (n.done ? ' done' : '') + '"><input type="checkbox" data-chk="' + n.id + '"' + (n.done ? ' checked' : '') + (edit ? '' : ' disabled') + ' aria-label="Выполнено"><span class="t">' + esc(n.text) +
-        (n.when ? '<br><span class="when">' + esc(n.when) + '</span>' : '') + '</span>' +
-        (edit ? '<button type="button" class="x" data-del="' + n.id + '" aria-label="Удалить">✕</button>' : '<span></span>') + '</li>';
+      var can = who === me || n.by === me;
+      var when = n.date ? DAYS[dow(n.date)] + ', ' + longDate(n.date) + ' · ' + esc(n.time) : esc(n.when);
+      var from = n.by !== who ? 'добавил' + (n.by === 'ulya' ? 'а' : '') + ': ' + NAMES[n.by] : '';
+      var sub2 = [when, from].filter(Boolean).join(' · ');
+      h += '<li class="item' + (n.done ? ' done' : '') + '"><input type="checkbox" data-chk="' + n.id + '"' + (n.done ? ' checked' : '') + (can ? '' : ' disabled') + ' aria-label="Выполнено"><span class="t">' + esc(n.text) +
+        (sub2 ? '<br><span class="when">' + sub2 + '</span>' : '') + '</span>' +
+        (can ? '<button type="button" class="x" data-del="' + n.id + '" aria-label="Удалить">✕</button>' : '<span></span>') + '</li>';
     });
-    h += '</ul>';
-    if (edit) {
-      h += '<form class="add" id="board-form"><input id="board-text" maxlength="200" placeholder="' + c.ph + '" aria-label="Название" required>' +
-        (c.when ? '<input id="board-when" maxlength="60" placeholder="' + c.when + '" aria-label="Когда примерно">' : '') +
-        '<button type="submit" class="btn primary">Добавить</button></form>';
-    }
+    h += '</ul><form class="form" id="board-form"><label>Что добавить<select id="board-kind"><option value="task"' + (kind === 'tasks' ? ' selected' : '') + '>Задача</option><option value="plan"' + (kind === 'plans' ? ' selected' : '') + '>План по времени</option></select></label>' +
+      '<label class="wide">Название<input id="board-text" maxlength="200" placeholder="Например: купить краску для принтера" required></label>' +
+      '<label class="when-f">Дата<input id="board-date" type="date" value="' + moscowNow().date + '"></label>' +
+      '<label class="when-f">Время<input id="board-time" type="time" value="18:00"></label>' +
+      '<button type="submit" class="btn primary">' + (who === me ? 'Добавить себе' : 'Добавить для: ' + NAMES[who]) + '</button></form>';
     return h + '</section>';
   }
   function bindBoard(kind, who) {
-    if (who !== state.me) return;
+    var kindSel = $('board-kind');
+    function sync() { var p = kindSel.value === 'plan'; $('view').querySelectorAll('.when-f').forEach(function (l) { l.hidden = !p; }); $('board-date').required = p; $('board-time').required = p; }
+    kindSel.addEventListener('change', sync); sync();
     $('board-form').addEventListener('submit', function (e) {
       e.preventDefault(); var t = $('board-text').value.trim(); if (!t) return;
-      var w = $('board-when') ? $('board-when').value.trim() : '';
-      act(function () { return rpc('vx_item_add', { p_code: CODE, p_kind: kind === 'plans' ? 'plan' : 'task', p_body: t, p_when: w }); });
+      var isPlan = kindSel.value === 'plan';
+      var args = { p_code: CODE, p_kind: isPlan ? 'plan' : 'task', p_body: t, p_when: '', p_owner: who, p_day: isPlan ? $('board-date').value : null, p_time: isPlan ? $('board-time').value : null };
+      if (isPlan && (!args.p_day || !args.p_time)) return;
+      sub[who] = isPlan ? 'plans' : 'tasks';
+      act(function () { return rpc('vx_item_add', args); });
     });
     $('view').querySelector('.list').addEventListener('click', function (e) {
       var d = e.target.closest('[data-del]'), c = e.target.closest('[data-chk]');

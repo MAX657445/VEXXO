@@ -460,6 +460,19 @@ details.up summary { padding: 12px var(--pad); cursor: pointer; color: var(--acc
 .row h1 { min-width: 0; }
 .qr .ic { flex: none; }
 .mform .form-msg:empty, .mform .local-note:empty { display: none; }
+.av.c0 { background: rgba(125, 211, 192, .18); color: #7DD3C0; }
+.av.c1 { background: rgba(255, 159, 110, .18); color: #FF9F6E; }
+.av.c2 { background: rgba(245, 184, 75, .18); color: #F5B84B; }
+.av.c3 { background: rgba(185, 164, 255, .18); color: #B9A4FF; }
+.av.c4 { background: rgba(139, 196, 255, .18); color: #8BC4FF; }
+:root[data-theme="light"] .av.c0 { color: #1F8A75; }
+:root[data-theme="light"] .av.c1 { color: #C2561F; }
+:root[data-theme="light"] .av.c2 { color: #9A6A00; }
+:root[data-theme="light"] .av.c3 { color: #6B4FD8; }
+:root[data-theme="light"] .av.c4 { color: #1F6FB8; }
+.mrow { display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap; padding: 12px var(--pad); }
+.mrow + .mrow { border-top: 1px solid var(--line); }
+.mrow .mi { display: flex; align-items: center; gap: 12px; min-width: 0; }
 @media (min-width: 901px) { .toasts { bottom: 24px; } }
 @media (max-width: 700px) { .mcell .chip { pointer-events: none; } }
 @media (prefers-reduced-motion: reduce) { * { animation: none !important; transition: none !important; } }
@@ -537,7 +550,16 @@ details.up summary { padding: 12px var(--pad); cursor: pointer; color: var(--acc
   var MAX_FILE = 25 * 1024 * 1024;
 
   var SKEY = 'vexxo:session', PKEY = 'vexxo:prefs', CKEY = 'vexxo:chat';
-  var NAMES = { ulya: 'Уля', maxim: 'Максим' };
+  // Участники приходят с сервера (vx_load -> users). До первой загрузки известны только двое основных.
+  var NAMES = { ulya: 'Уля', maxim: 'Максим' }, FEM = { ulya: true }, OFF = {}, ORDER = ['ulya', 'maxim'];
+  function members() { return ORDER.filter(function (n) { return !OFF[n]; }); }
+  function nameOf(w) { return NAMES[w] || w || ''; }
+  // Окончание по роду: ge(w) -> 'а' для девушки, '' для парня («добавил» + ge(w)).
+  function ge(w) { return FEM[w] ? 'а' : ''; }
+  function setUsers(list) {
+    NAMES = {}; FEM = {}; OFF = {}; ORDER = [];
+    list.forEach(function (u) { NAMES[u.name] = u.title; FEM[u.name] = !!u.fem; OFF[u.name] = !!u.off; ORDER.push(u.name); });
+  }
   var DAYN = ['Воскресенье', 'Понедельник', 'Вторник', 'Среда', 'Четверг', 'Пятница', 'Суббота'];
   var DAYS = ['вс', 'пн', 'вт', 'ср', 'чт', 'пт', 'сб'];
   var MONTHS = ['января', 'февраля', 'марта', 'апреля', 'мая', 'июня', 'июля', 'августа', 'сентября', 'октября', 'ноября', 'декабря'];
@@ -620,23 +642,31 @@ details.up summary { padding: 12px var(--pad); cursor: pointer; color: var(--acc
   }
 
   var CODE = '';
-  var state = { me: '', raw: null, schedule: [], trash: [], events: [], items: [], plans: { ulya: [], maxim: [] }, tasks: { ulya: [], maxim: [] }, comments: {}, recent: [], drawings: { sapr: [], arch: [] } };
+  var state = { me: '', raw: null, schedule: [], trash: [], events: [], items: [], plans: { ulya: [], maxim: [] }, tasks: { ulya: [], maxim: [] }, comments: {}, recent: [], drawings: { sapr: [], arch: [] }, usersSig: '' };
   var lastSig = '';
 
   function fileUrl(path) { return SB_URL + '/storage/v1/object/public/drawings/' + path; }
   function applyData(d) {
     state.me = d.me;
+    if (d.users && d.users.length) {
+      setUsers(d.users);
+      var us = JSON.stringify(d.users);
+      if (us !== state.usersSig) { state.usersSig = us; if (!app.hidden) { buildNav(); markNav(); } }
+    }
     state.events = (d.events || []).map(function (e) {
-      var v = e.votes || {};
-      return { id: e.id, title: e.title, date: e.date, time: String(e.time).slice(0, 5), by: e.by, votes: { ulya: v.ulya || '', maxim: v.maxim || '' }, cat: e.cat || 'personal', task: e.task || '' };
+      var v = e.votes || {}, votes = {};
+      for (var k in v) votes[k] = v[k] || '';
+      return { id: e.id, title: e.title, date: e.date, time: String(e.time).slice(0, 5), by: e.by, votes: votes, cat: e.cat || 'personal', task: e.task || '' };
     });
-    state.plans = { ulya: [], maxim: [] }; state.tasks = { ulya: [], maxim: [] }; state.items = [];
+    state.plans = {}; state.tasks = {}; state.items = [];
+    ORDER.forEach(function (w) { state.plans[w] = []; state.tasks[w] = []; });
     (d.items || []).forEach(function (i) {
       var it = {
         id: i.id, kind: i.kind, owner: i.owner, text: i.text, when: i.when || '', done: !!i.done, date: i.date || '', time: i.time ? String(i.time).slice(0, 5) : '',
         by: i.by || i.owner, status: i.status || (i.done ? 'done' : 'todo'), prio: i.priority || 'mid', due: i.due || '', created: i.created || ''
       };
-      (it.kind === 'plan' ? state.plans : state.tasks)[it.owner].push(it);
+      var bucket = it.kind === 'plan' ? state.plans : state.tasks;
+      (bucket[it.owner] = bucket[it.owner] || []).push(it);
       state.items.push(it);
     });
     state.comments = {};
@@ -816,18 +846,22 @@ details.up summary { padding: 12px var(--pad); cursor: pointer; color: var(--acc
   }
 
   /* ----- навигация ----- */
-  var view = 'home', sub = { ulya: 'tasks', maxim: 'tasks' };
-  var VIEWS = ['home', 'cal', 'tasks', 'draw', 'ulya', 'maxim', 'me', 'admin'];
+  var view = 'home', sub = {};
+  var VIEWS = ['home', 'cal', 'tasks', 'draw', 'me', 'admin'];
   var NAV = [
     ['Работа', [['home', 'Главная', 'home'], ['cal', 'Календарь', 'cal'], ['tasks', 'Задачи', 'tasks'], ['draw', 'Чертежи', 'draw']]],
-    ['Люди', [['ulya', 'Уля', 'user'], ['maxim', 'Максим', 'user']]],
+    ['Люди', []],
     ['Настройки', [['me', 'Кабинет', 'cog'], ['admin', 'Админ', 'shield']]]
   ];
+  function isPerson(v) { return ORDER.indexOf(v) >= 0; }
   function navVisible(v) { return v !== 'admin' || state.me === 'maxim'; }
-  function fromHash() { var h = (location.hash || '').replace('#', ''); return VIEWS.indexOf(h) >= 0 && navVisible(h) ? h : ''; }
-  function av(who, cls) { return '<span class="av ' + (who === 'ulya' ? 'ulya ' : '') + (cls || '') + '" title="' + esc(NAMES[who] || '') + '">' + esc((NAMES[who] || '?').charAt(0)) + '</span>'; }
+  function fromHash() { var h = (location.hash || '').replace('#', ''); return (VIEWS.indexOf(h) >= 0 || isPerson(h)) && navVisible(h) ? h : ''; }
+  // Цвет значка человека: Уля розовая, Максим по умолчанию, остальные по имени.
+  function avCls(w) { if (w === 'ulya') return 'ulya '; if (w === 'maxim') return ''; var n = 0, s = String(w); for (var i = 0; i < s.length; i++) n += s.charCodeAt(i); return 'c' + (n % 5) + ' '; }
+  function av(who, cls) { return '<span class="av ' + avCls(who) + (cls || '') + '" title="' + esc(NAMES[who] || '') + '">' + esc((NAMES[who] || '?').charAt(0)) + '</span>'; }
   function buildNav() {
-    var h = '<div class="brand"><div class="brand-ic">' + ic('bolt') + '</div><div><div class="brand-n">VEXXO</div><div class="brand-s">для двоих</div></div></div>';
+    var h = '<div class="brand"><div class="brand-ic">' + ic('bolt') + '</div><div><div class="brand-n">VEXXO</div><div class="brand-s">для своих</div></div></div>';
+    NAV[1][1] = members().map(function (w) { return [w, NAMES[w], 'user']; });
     NAV.forEach(function (g) {
       var items = g[1].filter(function (x) { return navVisible(x[0]); });
       if (!items.length) return;
@@ -845,7 +879,7 @@ details.up summary { padding: 12px var(--pad); cursor: pointer; color: var(--acc
   function markNav() {
     document.querySelectorAll('[data-go]').forEach(function (b) { if (b.getAttribute('data-go') === view) b.setAttribute('aria-current', 'page'); else b.removeAttribute('aria-current'); });
     var more = bottom.querySelector('[data-more]');
-    if (more) { if (['ulya', 'maxim', 'me', 'admin'].indexOf(view) >= 0) more.setAttribute('aria-current', 'page'); else more.removeAttribute('aria-current'); }
+    if (more) { if (view === 'me' || view === 'admin' || isPerson(view)) more.setAttribute('aria-current', 'page'); else more.removeAttribute('aria-current'); }
     var nb = $('nb-tasks');
     if (nb) {
       var n = state.items.filter(function (i) { return i.kind === 'task' && i.owner === state.me && i.status !== 'done'; }).length;
@@ -893,7 +927,7 @@ details.up summary { padding: 12px var(--pad); cursor: pointer; color: var(--acc
   }
   function openSheet() {
     var h = '';
-    [['ulya', 'Уля', 'user'], ['maxim', 'Максим', 'user'], ['me', 'Кабинет', 'cog']].concat(state.me === 'maxim' ? [['admin', 'Админ', 'shield']] : []).forEach(function (x) {
+    members().map(function (w) { return [w, NAMES[w], 'user']; }).concat([['me', 'Кабинет', 'cog']]).concat(state.me === 'maxim' ? [['admin', 'Админ', 'shield']] : []).forEach(function (x) {
       h += '<button type="button" class="nav-i" data-go="' + x[0] + '"' + (view === x[0] ? ' aria-current="page"' : '') + '>' + ic(x[2]) + '<span>' + x[1] + '</span></button>';
     });
     h += '<button type="button" class="nav-i" data-logout>' + ic('out') + '<span>Выйти</span></button>';
@@ -921,9 +955,9 @@ details.up summary { padding: 12px var(--pad); cursor: pointer; color: var(--acc
       (showOwner ? av(it.owner, 's') : '<span></span>') + '</div>';
   }
   function voteBadge(e) {
-    var v = e.votes;
-    if (v.ulya === 'no' || v.maxim === 'no') return '<span class="badge no">Отказ</span>';
-    if (v.ulya === 'yes' && v.maxim === 'yes') return '<span class="badge yes">Согласовано</span>';
+    var v = e.votes, mem = members();
+    if (mem.some(function (w) { return v[w] === 'no'; })) return '<span class="badge no">Отказ</span>';
+    if (mem.every(function (w) { return v[w] === 'yes'; })) return '<span class="badge yes">Согласовано</span>';
     return '<span class="badge review">Ждёт ответа</span>';
   }
   function dateChip(iso) { var p = iso.split('-'); return '<div class="datechip"><b>' + parseInt(p[2], 10) + '</b><small>' + MON_S[parseInt(p[1], 10) - 1] + '</small></div>'; }
@@ -986,7 +1020,7 @@ details.up summary { padding: 12px var(--pad); cursor: pointer; color: var(--acc
       '<button type="button" class="btn" data-new="plan">' + ic('clock') + 'План по времени</button>' +
       (me === 'maxim' ? '<button type="button" class="btn" data-go="draw">' + ic('upload') + 'Чертежи</button>' : '<button type="button" class="btn" data-go="draw">' + ic('draw') + 'Чертежи</button>') +
       '<button type="button" class="btn" data-chat-open>' + ic('chat') + 'Спросить Claude</button>' +
-      '<button type="button" class="btn" data-go="' + (me === 'maxim' ? 'maxim' : 'ulya') + '">' + ic('user') + 'Моя страница</button></div></section></div>';
+      '<button type="button" class="btn" data-go="' + me + '">' + ic('user') + 'Моя страница</button></div></section></div>';
     var td = state.schedule.filter(function (r) { return r.owner === me && r.date === t; }).sort(function (a, b) { return a.pair - b.pair; });
     if (td.length) {
       h += '<section class="card"><header><h2>Пары сегодня</h2><button type="button" class="link" data-go="' + me + '" data-sub="sched">Расписание</button></header>' + td.map(function (p) {
@@ -1017,7 +1051,7 @@ details.up summary { padding: 12px var(--pad); cursor: pointer; color: var(--acc
   function vTasks() {
     var h = '<div class="row"><h1>Задачи</h1>' + newBtn('task', 'Новая задача') + '</div>' +
       '<div class="tools"><input type="search" id="tf-q" placeholder="Поиск по задачам" aria-label="Поиск по задачам" value="' + esc(tf.q) + '">' +
-      '<select id="tf-owner" aria-label="Исполнитель">' + opt('all', 'Все', tf.owner) + opt('me', 'Мои', tf.owner) + opt('ulya', 'Уля', tf.owner) + opt('maxim', 'Максим', tf.owner) + '</select>' +
+      '<select id="tf-owner" aria-label="Исполнитель">' + opt('all', 'Все', tf.owner) + opt('me', 'Мои', tf.owner) + members().map(function (w) { return opt(w, NAMES[w], tf.owner); }).join('') + '</select>' +
       '<select id="tf-prio" aria-label="Приоритет">' + opt('', 'Любой приоритет', tf.prio) + opt('high', 'Высокий', tf.prio) + opt('mid', 'Средний', tf.prio) + opt('low', 'Низкий', tf.prio) + '</select>' +
       '<select id="tf-due" aria-label="Срок">' + opt('', 'Любой срок', tf.due) + opt('late', 'Просроченные', tf.due) + opt('today', 'Сегодня', tf.due) + opt('week', 'Ближайшие 7 дней', tf.due) + opt('none', 'Без срока', tf.due) + '</select>' +
       '<div class="seg" role="group" aria-label="Вид"><button type="button" data-tmode="list" aria-pressed="' + (tf.mode === 'list') + '">Список</button><button type="button" data-tmode="board" aria-pressed="' + (tf.mode === 'board') + '">Доска</button></div></div>' +
@@ -1082,7 +1116,7 @@ details.up summary { padding: 12px var(--pad); cursor: pointer; color: var(--acc
   }
   function dcardHtml(x) {
     var meta = CATS[x.cat].n, badge = '';
-    if (x.k === 'ev') { var e = eventById(x.id); if (e) badge = voteBadge(e); meta += ' · предложил' + (e && e.by === 'ulya' ? 'а' : '') + ': ' + (e ? NAMES[e.by] : ''); }
+    if (x.k === 'ev') { var e = eventById(x.id); if (e) badge = voteBadge(e); meta += ' · предложил' + (e ? ge(e.by) : '') + ': ' + (e ? NAMES[e.by] : ''); }
     else { var it = itemById(x.id); if (it) meta += ' · ' + NAMES[it.owner]; }
     return '<div class="dcard" style="--c:' + CATS[x.cat].c + '" data-' + x.k + '="' + x.id + '" role="button" tabindex="0"><span class="tm">' + (x.time ? esc(x.time) : 'весь день') + '</span><div><h3>' + esc(x.title) + '</h3><div class="meta">' + esc(meta) + '</div></div>' + badge + '</div>';
   }
@@ -1142,7 +1176,7 @@ details.up summary { padding: 12px var(--pad); cursor: pointer; color: var(--acc
 
   /* ----- создание: задача, событие или план в одном окне ----- */
   function ownerOpts(cur) {
-    return ['ulya', 'maxim'].map(function (w) { return opt(w, w === state.me ? 'Мне (' + NAMES[w] + ')' : 'Для: ' + NAMES[w], cur); }).join('');
+    return members().map(function (w) { return opt(w, w === state.me ? 'Мне (' + NAMES[w] + ')' : 'Для: ' + NAMES[w], cur); }).join('');
   }
   function mCreate(type, date) {
     var me = state.me, given = !!date, d0 = date || today(), cur = type || 'task';
@@ -1166,7 +1200,7 @@ details.up summary { padding: 12px var(--pad); cursor: pointer; color: var(--acc
       f.querySelectorAll('[data-ct]').forEach(function (b) { b.setAttribute('aria-pressed', b.getAttribute('data-ct') === cur ? 'true' : 'false'); });
       f.elements.d.required = f.elements.h.required = cur !== 'task';
       f.elements.t.placeholder = cur === 'task' ? 'Например: купить краску для принтера' : cur === 'event' ? 'Например: прогулка или кино' : 'Например: сдать курсовую';
-      $('cr-note').textContent = cur === 'event' ? 'Событие нужно согласовать: второй человек ответит «Согласен» или «Отказаться».' : cur === 'plan' ? 'План по времени виден в календаре и в личном списке.' : '';
+      $('cr-note').textContent = cur === 'event' ? 'Событие нужно согласовать: остальные участники ответят «Согласен» или «Отказаться».' : cur === 'plan' ? 'План по времени виден в календаре и в личном списке.' : '';
     }
     sync();
     f.addEventListener('click', function (e) { var b = e.target.closest('[data-ct]'); if (b) { cur = b.getAttribute('data-ct'); sync(); } });
@@ -1222,9 +1256,9 @@ details.up summary { padding: 12px var(--pad); cursor: pointer; color: var(--acc
       h += '<label class="fld">Статус<select name="s"' + dis + '>' + STATUS.map(function (x) { return opt(x[0], x[1], it.status); }).join('') + '</select></label>' +
         '<label class="fld">Приоритет<select name="p"' + dis + '>' + opt('low', 'Низкий', it.prio) + opt('mid', 'Средний', it.prio) + opt('high', 'Высокий', it.prio) + '</select></label>' +
         '<label class="fld">Срок<input name="due" type="date" value="' + esc(it.due) + '"' + dis + '></label>' +
-        '<label class="fld">Исполнитель<select name="o"' + dis + '>' + ['ulya', 'maxim'].map(function (w) { return opt(w, NAMES[w], it.owner); }).join('') + '</select></label>';
+        '<label class="fld">Исполнитель<select name="o"' + dis + '>' + (members().indexOf(it.owner) < 0 ? [it.owner] : []).concat(members()).map(function (w) { return opt(w, NAMES[w] || w, it.owner); }).join('') + '</select></label>';
     }
-    h += '<p class="when wide">' + (plan ? 'План' : 'Задача') + ' · добавил' + (it.by === 'ulya' ? 'а' : '') + ': ' + esc(NAMES[it.by]) + (it.created ? ' · ' + esc(fmtDt(it.created)) : '') + (can ? '' : ' · только просмотр') + '</p></form>';
+    h += '<p class="when wide">' + (plan ? 'План' : 'Задача') + ' · добавил' + ge(it.by) + ': ' + esc(NAMES[it.by]) + (it.created ? ' · ' + esc(fmtDt(it.created)) : '') + (can ? '' : ' · только просмотр') + '</p></form>';
     if (!plan) {
       var ev = state.events.filter(function (e) { return e.task === id; });
       if (ev.length) h += '<div><h2>Связанные события</h2><div class="card" style="margin-top:8px">' + ev.map(eventRow).join('') + '</div></div>';
@@ -1263,14 +1297,14 @@ details.up summary { padding: 12px var(--pad); cursor: pointer; color: var(--acc
   /* ----- событие ----- */
   function mEvent(id) {
     var e = eventById(id); if (!e) return;
-    var me = state.me, can = e.by === me || me === 'maxim', dis = can ? '' : ' disabled', mine = e.votes[me], yesL = me === 'ulya' ? 'Согласна' : 'Согласен';
+    var me = state.me, can = e.by === me || me === 'maxim', dis = can ? '' : ' disabled', mine = e.votes[me], yesL = FEM[me] ? 'Согласна' : 'Согласен';
     var lt = e.task ? itemById(e.task) : null;
     var h = '<form class="mform" id="ev-edit" novalidate><label class="fld wide">Название<input name="t" maxlength="120" required value="' + esc(e.title) + '"' + dis + '></label>' +
       '<label class="fld">Дата<input name="d" type="date" required value="' + esc(e.date) + '"' + dis + '></label><label class="fld">Время<input name="h" type="time" required value="' + esc(e.time) + '"' + dis + '></label>' +
       '<label class="fld wide">Категория<select name="c"' + dis + '>' + ['work', 'study', 'personal', 'other'].map(function (k) { return opt(k, CATS[k].n, e.cat); }).join('') + '</select></label>' +
-      '<p class="when wide">Предложил' + (e.by === 'ulya' ? 'а' : '') + ': ' + esc(NAMES[e.by]) + (can ? '. После изменения второй человек должен ответить ещё раз.' : '. Изменить может только автор.') + '</p></form>';
-    h += '<div><h2>Ответы</h2><div class="votes" style="margin-top:8px">' + ['ulya', 'maxim'].map(function (w) {
-      var v = e.votes[w]; return '<span class="badge ' + (v || '') + '">' + NAMES[w] + ': ' + (v === 'yes' ? (w === 'ulya' ? 'согласна' : 'согласен') : v === 'no' ? 'отказ' : 'ждёт') + '</span>';
+      '<p class="when wide">Предложил' + ge(e.by) + ': ' + esc(NAMES[e.by]) + (can ? '. После изменения остальные участники должны ответить ещё раз.' : '. Изменить может только автор.') + '</p></form>';
+    h += '<div><h2>Ответы</h2><div class="votes" style="margin-top:8px">' + members().map(function (w) {
+      var v = e.votes[w]; return '<span class="badge ' + (v || '') + '">' + esc(NAMES[w]) + ': ' + (v === 'yes' ? (FEM[w] ? 'согласна' : 'согласен') : v === 'no' ? 'отказ' : 'ждёт') + '</span>';
     }).join('') + '</div><div class="votes" style="margin-top:10px">' +
       '<button type="button" class="btn yes" data-vote="yes" data-id="' + id + '" aria-pressed="' + (mine === 'yes') + '">' + yesL + '</button>' +
       '<button type="button" class="btn no" data-vote="no" data-id="' + id + '" aria-pressed="' + (mine === 'no') + '">Отказаться</button></div></div>';
@@ -1288,7 +1322,7 @@ details.up summary { padding: 12px var(--pad); cursor: pointer; color: var(--acc
   }
   function delEvent(id) {
     var e = eventById(id); if (!e) return;
-    confirmDel('Событие «' + e.title + '» будет удалено у обоих.', function () { act(function () { return rpc('vx_event_del', { p_code: CODE, p_id: id }); }, 'Событие удалено'); });
+    confirmDel('Событие «' + e.title + '» будет удалено у всех.', function () { act(function () { return rpc('vx_event_del', { p_code: CODE, p_id: id }); }, 'Событие удалено'); });
   }
   function castVote(id, val) {
     var e = eventById(id); if (!e) return;
@@ -1299,6 +1333,7 @@ details.up summary { padding: 12px var(--pad); cursor: pointer; color: var(--acc
   /* ----- страница человека ----- */
   var sched = { who: '' };
   function vPerson(who) {
+    if (!sub[who]) sub[who] = 'tasks';
     var mineP = who === state.me, open = openTasksOf(who);
     var tabs = [['tasks', 'Задачи'], ['plans', 'Планы'], ['sched', 'Расписание']];
     var h = '<div class="phead">' + av(who, 'l') + '<div><h1>' + esc(NAMES[who]) + '</h1><p>' + (mineP ? 'Это твоя страница. ' : '') + 'Открытых задач: ' + open.length + '</p></div></div>' +
@@ -1502,6 +1537,10 @@ details.up summary { padding: 12px var(--pad); cursor: pointer; color: var(--acc
       '<section class="panel"><h2 class="panel-h">Оформление (только на этом устройстве)</h2><div class="panel-b"><div class="fld">Тема</div>' + seg('theme', prefs.theme, [['dark', 'Тёмная'], ['light', 'Светлая'], ['auto', 'Как в телефоне']]) +
       '<div class="fld">Плотность</div>' + seg('density', prefs.density, [['comfort', 'Свободно'], ['compact', 'Компактно']]) +
       '<label class="fld">Какую страницу открывать после входа<select id="pf-start">' + [['home', 'Главная'], ['cal', 'Календарь'], ['tasks', 'Задачи'], ['draw', 'Чертежи']].map(function (x) { return opt(x[0], x[1], prefs.start); }).join('') + '</select></label></div></section>' +
+      '<section class="panel"><h2 class="panel-h">Профиль</h2><form class="form" id="prof-form">' +
+      '<label>Имя на сайте<input id="pr-name" maxlength="20" required autocomplete="off" value="' + esc(NAMES[state.me]) + '"></label>' +
+      '<label>Обращение<select id="pr-fem">' + opt('0', 'Парень', FEM[state.me] ? '1' : '0') + opt('1', 'Девушка', FEM[state.me] ? '1' : '0') + '</select></label>' +
+      '<button class="btn primary" type="submit">Сохранить</button><p class="form-msg wide" id="pr-msg" role="status">Имя видят все участники. Обращение нужно для окончаний («добавил» или «добавила»).</p></form></section>' +
       '<section class="panel"><h2 class="panel-h">Сменить код</h2><form class="form" id="code-form">' +
       '<label>Текущий код<input id="cc-cur" type="password" inputmode="numeric" autocomplete="off" pattern="[0-9]{4,12}" required></label>' +
       '<label>Новый код (6–12 цифр)<input id="cc-new" type="password" inputmode="numeric" autocomplete="off" pattern="[0-9]{6,12}" required></label>' +
@@ -1514,6 +1553,16 @@ details.up summary { padding: 12px var(--pad); cursor: pointer; color: var(--acc
     $('view').innerHTML = h;
     tgPaint();
     $('pf-start').addEventListener('change', function () { prefs.start = this.value; savePrefs(); toast('Сохранено'); });
+    $('prof-form').addEventListener('submit', async function (e) {
+      e.preventDefault();
+      var msg = $('pr-msg'), nm = $('pr-name').value.trim();
+      msg.textContent = 'Сохраняем…';
+      try {
+        var r = await rpc('vx_me_profile', { p_code: CODE, p_title: nm, p_fem: $('pr-fem').value === '1' });
+        if (r && r.error) { msg.textContent = r.error === 'taken' ? 'Такое имя уже есть у другого участника.' : 'Имя: от 2 до 20 символов, буквы и цифры.'; return; }
+        await loadData(); buildNav(); toast('Профиль сохранён'); vMe();
+      } catch (err) { msg.textContent = 'Нет связи с сервером.'; }
+    });
     $('code-form').addEventListener('submit', async function (e) {
       e.preventDefault();
       var cur = $('cc-cur').value, nw = $('cc-new').value, rp = $('cc-rep').value, msg = $('cc-msg');
@@ -1567,14 +1616,14 @@ details.up summary { padding: 12px var(--pad); cursor: pointer; color: var(--acc
     if (ok) { if (view === 'me') vMe(); else if (view === 'admin') loadAdmin(); }
   }
   async function mInvite(name) {
-    var self = name === state.me, who = name === 'ulya' ? 'Уле' : 'Максиму';
+    var self = name === state.me, who = 'участнику «' + nameOf(name) + '»';
     openModal('Подключить Telegram', '<div id="inv-body"><p class="when">Готовлю ссылку…</p></div>');
     var tok;
     try { tok = await rpc('vx_invite_create', { p_code: CODE, p_name: name }); } catch (e) { closeModal(); showErr(e); return; }
     if (!tok) { closeModal(); toast('Не получилось создать ссылку', true); return; }
     var link = 'https://t.me/' + BOT_USER + '?start=' + tok, box = $('inv-body'); if (!box) return;
     box.innerHTML = (self ? '<p>Нажми «Открыть бота», в Telegram нажми «Запустить» (Start). Больше ничего не нужно.</p>' :
-      '<p>Отправь эту ссылку ' + who + '. Достаточно нажать на неё и в Telegram нажать «Запустить» (Start): сообщения подключатся сами. Ссылка одноразовая и действует 48 часов.</p>') +
+      '<p>Отправь эту ссылку: ' + who + '. Достаточно нажать на неё и в Telegram нажать «Запустить» (Start): сообщения подключатся сами. Ссылка одноразовая и действует 48 часов.</p>') +
       '<label class="fld" style="margin:12px 0">Ссылка<input id="inv-link" readonly value="' + esc(link) + '"></label>' +
       '<div class="acts-row"><a class="btn primary" id="inv-open" href="' + esc(link) + '" target="_blank" rel="noopener">Открыть бота</a><button type="button" class="btn" id="inv-copy">Скопировать</button>' +
       (navigator.share ? '<button type="button" class="btn" id="inv-share">Поделиться</button>' : '') + '</div><p class="form-msg" id="inv-st" role="status" style="margin-top:12px">Жду, пока подключится…</p>';
@@ -1631,7 +1680,7 @@ details.up summary { padding: 12px var(--pad); cursor: pointer; color: var(--acc
   }
 
   /* ----- админ (только Максим; сервер всё равно проверяет, кто спрашивает) ----- */
-  var ADM_TABS = [['sum', 'Сводка'], ['acc', 'Доступ'], ['data', 'Данные'], ['files', 'Чертежи'], ['tg', 'Telegram'], ['log', 'Журнал']];
+  var ADM_TABS = [['sum', 'Сводка'], ['mem', 'Участники'], ['acc', 'Доступ'], ['data', 'Данные'], ['files', 'Чертежи'], ['tg', 'Telegram'], ['log', 'Журнал']];
   var asub = 'sum', dsub = 'events', logWho = '', admSeq = 0, admCache = {};
   var LOGIN_KINDS = { login: 'Вход', logout: 'Выход', logout_all: 'Выход на всех устройствах', code_change: 'Смена кода', code_reset: 'Код сброшен Максимом', kick: 'Закрыты все устройства', lock: 'Сайт закрыт', unlock: 'Сайт открыт' };
   var LOG_ACTIONS = {
@@ -1639,10 +1688,11 @@ details.up summary { padding: 12px var(--pad); cursor: pointer; color: var(--acc
     plan_add: 'Добавлен план', plan_del: 'Удалён план', task_add: 'Добавлена задача', task_del: 'Удалена задача',
     item_done: 'Отметка выполнения', item_edit: 'Изменена запись', item_status: 'Новый статус задачи', item_owner: 'Задача передана', comment_add: 'Комментарий к задаче', file_add: 'Загружен чертёж', file_del: 'Удалён чертёж',
     sched_add: 'Добавлена пара', sched_del: 'Удалена пара', admin_clean: 'Чистка хранилища', admin_tg: 'Сообщение из админки',
-    admin_setting: 'Настройка уведомлений', tg_invite: 'Ссылка для подключения Telegram', tg_link: 'Telegram подключён', tg_unlink: 'Telegram отключён', admin_run: 'Ручной запуск', admin_purge: 'Чистка данных', tg_self: 'Свои уведомления в Telegram'
+    admin_setting: 'Настройка уведомлений', tg_invite: 'Ссылка для подключения Telegram', tg_link: 'Telegram подключён', tg_unlink: 'Telegram отключён', admin_run: 'Ручной запуск', admin_purge: 'Чистка данных', tg_self: 'Свои уведомления в Telegram',
+    member_join: 'Новый участник', admin_member: 'Участник отключён или возвращён', admin_member_invite: 'Приглашение нового участника', profile: 'Профиль изменён'
   };
   var TG_FLAGS = [
-    ['items', 'Новая задача или план от другого человека'], ['events', 'Новый общий план на согласование'], ['votes', 'Ответ на событие (согласен или отказ)'],
+    ['items', 'Новая задача или план от другого участника'], ['events', 'Новый общий план на согласование'], ['votes', 'Ответ на событие (согласен или отказ)'],
     ['edits', 'Изменение общего плана'], ['comments', 'Комментарий к задаче'], ['remind', 'Напоминание за час'], ['digest', 'Утренняя сводка в 8:00']
   ];
   function arpc(fn, args) {
@@ -1678,6 +1728,7 @@ details.up summary { padding: 12px var(--pad); cursor: pointer; color: var(--acc
     var my = ++admSeq, s = asub, html = '';
     try {
       if (s === 'sum') html = admSum(await arpc('vx_admin_overview', {}));
+      else if (s === 'mem') html = admMem(await arpc('vx_admin_overview', {}));
       else if (s === 'acc') html = admAcc(await arpc('vx_admin_logins', {}));
       else if (s === 'data') html = admData();
       else if (s === 'files') html = admFiles(await arpc('vx_admin_storage', {}));
@@ -1696,7 +1747,7 @@ details.up summary { padding: 12px var(--pad); cursor: pointer; color: var(--acc
   /* --- Сводка --- */
   function admSum(o) {
     var c = o.counts || {}, u = o.users || {}, f = o.failed || {}, tg = o.tg || {}, st = o.storage || {}, chats = tg.chats || {};
-    var h = o.locked ? '<div class="banner">Сайт закрыт для Ули. Открыть: вкладка «Доступ»</div>' : '';
+    var h = o.locked ? '<div class="banner">Сайт закрыт для всех, кроме тебя. Открыть: вкладка «Доступ»</div>' : '';
     h += '<div class="stats">' +
       stat('События', c.events_upcoming || 0, 'впереди, всего ' + (c.events || 0)) +
       stat('Задачи', c.tasks_open || 0, 'открытых, выполнено ' + (c.tasks_done || 0)) +
@@ -1705,15 +1756,15 @@ details.up summary { padding: 12px var(--pad); cursor: pointer; color: var(--acc
       stat('Пары', c.sched || 0, 'в расписании') +
       stat('Журнал', c.log || 0, 'записей') + '</div>';
     h += '<section class="panel"><h2 class="panel-h">Люди</h2>';
-    ['ulya', 'maxim'].forEach(function (n) {
-      var x = u[n] || {};
-      h += kvs([[NAMES[n], (x.sessions || 0) + ' ' + pl(x.sessions || 0, 'устройство', 'устройства', 'устройств')],
+    (o.members || []).forEach(function (m) {
+      var n = m.name, x = u[n] || {};
+      h += kvs([[esc(m.title) + (m.off ? ' (отключён)' : ''), (x.sessions || 0) + ' ' + pl(x.sessions || 0, 'устройство', 'устройства', 'устройств')],
                 ['Последняя активность', esc(ago(x.last_seen))], ['Последний вход по коду', esc(fmtDt(x.last_login))]]);
     });
     h += '</section><section class="panel"><h2 class="panel-h">Вход по коду</h2>' +
       kvs([['Неверных кодов за сутки', String(f.count_24h || 0)], ['Последний неверный', esc(fmtDt(f.last))]]) + '</section>';
     h += '<section class="panel"><h2 class="panel-h">Telegram</h2>' +
-      kvs([['Бот', tg.token ? 'подключён' : 'нет токена'], ['Чат Максима', chats.maxim ? 'есть' : 'нет'], ['Чат Ули', chats.ulya ? 'есть' : 'нет'],
+      kvs([['Бот', tg.token ? 'подключён' : 'нет токена'], ['Подключённых чатов', Object.keys(chats).length + ' из ' + (o.members || []).length],
            ['Отправок за последние часы', (tg.ok || 0) + ' ок, ' + (tg.fail || 0) + ' с ошибкой']]) + '</section>';
     h += '<section class="panel"><h2 class="panel-h">Задания по расписанию</h2>';
     if (!(o.cron || []).length) h += '<div class="panel-b"><p>Заданий не найдено. Напоминания и сводка не будут приходить.</p></div>';
@@ -1726,20 +1777,17 @@ details.up summary { padding: 12px var(--pad); cursor: pointer; color: var(--acc
 
   /* --- Доступ --- */
   function admAcc(d) {
-    var h = '<section class="panel"><h2 class="panel-h">Доступ для Ули</h2><div class="panel-b">' +
-      '<div class="banner' + (d.locked ? '' : ' ok') + '">' + (d.locked ? 'Сайт закрыт: Уля не может войти' : 'Сайт открыт') + '</div>' +
-      '<p>Когда сайт закрыт, Уля видит «Сайт временно закрыт». Её устройства остаются запомненными и заходят сами, как только откроешь. Ты входишь всегда.</p>' +
+    var h = '<section class="panel"><h2 class="panel-h">Доступ на сайт</h2><div class="panel-b">' +
+      '<div class="banner' + (d.locked ? '' : ' ok') + '">' + (d.locked ? 'Сайт закрыт: остальные участники не могут войти' : 'Сайт открыт') + '</div>' +
+      '<p>Когда сайт закрыт, остальные участники видят «Сайт временно закрыт». Их устройства остаются запомненными и заходят сами, как только откроешь. Ты входишь всегда. Сбросить пароль, выйти за человека или отключить его можно во вкладке «Участники».</p>' +
       (d.locked ? '<button type="button" class="btn primary" data-a="unlock">Открыть сайт</button>'
-                : '<button type="button" class="btn" data-a="lock" data-confirm="1">Закрыть сайт для Ули</button>') +
+                : '<button type="button" class="btn" data-a="lock" data-confirm="1">Закрыть сайт для остальных</button>') +
       '</div></section>';
-    h += '<section class="panel"><h2 class="panel-h">Сбросить код Ули</h2><form class="form" id="rc-form">' +
-      '<label class="wide">Новый код (6–12 цифр, не такой же, как у тебя)<input id="rc-new" type="text" inputmode="numeric" autocomplete="off" pattern="[0-9]{6,12}" maxlength="12" required></label>' +
-      '<button type="submit" class="btn primary">Задать код</button><p class="form-msg wide" id="rc-msg" role="status">Её устройства выйдут. Новый код передай ей сам.</p></form></section>';
     h += '<section class="panel"><h2 class="panel-h">Устройства</h2>';
     var ss = d.sessions || [];
     if (!ss.length) h += '<div class="empty">Запомненных устройств нет.</div>';
     ss.forEach(function (s) { h += '<div class="ses"><span>' + esc(NAMES[s.name] || s.name) + ' · ' + esc(s.device || 'устройство') + '</span><span>' + esc(ago(s.last_seen || s.created)) + '</span></div>'; });
-    h += '<div class="panel-b"><button type="button" class="btn" data-a="kick" data-confirm="1">Выйти за Улю на всех устройствах</button></div></section>';
+    h += '</section>';
     var f = d.failed || {};
     h += '<section class="panel"><h2 class="panel-h">Журнал входов</h2><p class="local-note" style="margin:12px 16px">Неверных кодов: ' + (f.count_24h || 0) + ' за сутки, последний ' + esc(fmtDt(f.last)) + '.</p>';
     var lg = d.logins || [];
@@ -1755,7 +1803,7 @@ details.up summary { padding: 12px var(--pad); cursor: pointer; color: var(--acc
     var subs = [['events', 'События'], ['plans', 'Планы'], ['tasks', 'Задачи'], ['pairs', 'Пары']];
     var today = moscowNow().date, cutoff = addDays(today, -7), cutoffS = addDays(today, -30);
     var doneN = 0, oldN = 0, schedOld = 0;
-    ['ulya', 'maxim'].forEach(function (w) { state.plans[w].concat(state.tasks[w]).forEach(function (n) { if (n.done) doneN++; }); state.plans[w].forEach(function (n) { if (n.date && n.date < cutoff) oldN++; }); });
+    ORDER.forEach(function (w) { (state.plans[w] || []).concat(state.tasks[w] || []).forEach(function (n) { if (n.done) doneN++; }); (state.plans[w] || []).forEach(function (n) { if (n.date && n.date < cutoff) oldN++; }); });
     state.events.forEach(function (e) { if (e.date < cutoff) oldN++; });
     state.schedule.forEach(function (r) { if (r.date < cutoffS) schedOld++; });
     var h = '<section class="panel"><h2 class="panel-h">Резервная копия и чистка</h2><div class="panel-b">' +
@@ -1770,19 +1818,19 @@ details.up summary { padding: 12px var(--pad); cursor: pointer; color: var(--acc
     if (dsub === 'events') {
       if (!state.events.length) h += '<div class="empty">Событий нет.</div>';
       state.events.forEach(function (e) {
-        h += '<div class="ev"><div><h3>' + esc(e.title) + '</h3><div class="meta"><span class="mono">' + esc(shortDate(e.date)) + ' ' + esc(e.time) + '</span><span>предложил' + (e.by === 'ulya' ? 'а' : '') + ': ' + NAMES[e.by] + '</span></div>' +
-          '<div class="votes" style="margin-top:8px">' + statusBadge(e, 'ulya') + statusBadge(e, 'maxim') + '</div></div>' +
+        h += '<div class="ev"><div><h3>' + esc(e.title) + '</h3><div class="meta"><span class="mono">' + esc(shortDate(e.date)) + ' ' + esc(e.time) + '</span><span>предложил' + ge(e.by) + ': ' + esc(nameOf(e.by)) + '</span></div>' +
+          '<div class="votes" style="margin-top:8px">' + members().map(function (w) { return statusBadge(e, w); }).join('') + '</div></div>' +
           '<div class="votes"><button type="button" class="x e" data-ev="' + e.id + '" aria-label="Изменить событие">' + ic('edit', true) + '</button><button type="button" class="x" data-del-ev="' + e.id + '" aria-label="Удалить событие">' + ic('trash', true) + '</button></div></div>';
       });
     } else if (dsub === 'plans' || dsub === 'tasks') {
       var rows = [];
-      ['ulya', 'maxim'].forEach(function (w) { state[dsub][w].forEach(function (n) { rows.push({ w: w, n: n }); }); });
+      ORDER.forEach(function (w) { (state[dsub][w] || []).forEach(function (n) { rows.push({ w: w, n: n }); }); });
       if (dsub === 'plans') rows.sort(function (a, b) { var x = (a.n.date || '') + (a.n.time || ''), y = (b.n.date || '') + (b.n.time || ''); return x < y ? -1 : x > y ? 1 : 0; });
       if (!rows.length) h += '<div class="empty">Записей нет.</div>';
       h += '<ul class="list">';
       rows.forEach(function (r) {
         var n = r.n;
-        var meta = [NAMES[r.w], n.date ? shortDate(n.date) + ' ' + esc(n.time) : esc(n.when), n.by !== r.w ? 'добавил' + (n.by === 'ulya' ? 'а' : '') + ': ' + NAMES[n.by] : ''].filter(Boolean).join(' · ');
+        var meta = [NAMES[r.w], n.date ? shortDate(n.date) + ' ' + esc(n.time) : esc(n.when), n.by !== r.w ? 'добавил' + ge(n.by) + ': ' + nameOf(n.by) : ''].filter(Boolean).join(' · ');
         h += '<li class="item' + (n.done ? ' done' : '') + '"><input type="checkbox" data-adm-chk="' + n.id + '"' + (n.done ? ' checked' : '') + ' aria-label="Выполнено"><span class="t">' + esc(n.text) + '<br><span class="when">' + meta + '</span></span>' +
           '<span class="acts"><button type="button" class="x e" data-task="' + n.id + '" aria-label="Изменить">' + ic('edit', true) + '</button><button type="button" class="x" data-adm-del="' + n.id + '" aria-label="Удалить">' + ic('trash', true) + '</button></span></li>';
       });
@@ -1830,24 +1878,24 @@ details.up summary { padding: 12px var(--pad); cursor: pointer; color: var(--acc
   function admTg(o) {
     var tg = o.tg || {}, fl = tg.flags || {}, chats = tg.chats || {};
     var h = '<section class="panel"><h2 class="panel-h">Состояние</h2>' +
-      kvs([['Бот', tg.token ? 'подключён' : 'нет токена'], ['Чат Максима', chats.maxim ? 'есть' : 'нет'], ['Чат Ули', chats.ulya ? 'есть' : 'нет'],
+      kvs([['Бот', tg.token ? 'подключён' : 'нет токена'], ['Приём сообщений от Telegram (webhook)', (o.reg || {}).webhook ? 'включён' : 'выключен'],
+           ['Подключённых чатов', Object.keys(chats).length + ' из ' + (o.members || []).length],
            ['Отправок за последние часы', (tg.ok || 0) + ' ок, ' + (tg.fail || 0) + ' с ошибкой']]) +
       '<div class="panel-b"><button type="button" class="btn primary" data-a="tg-test">Проверить связь (сообщение мне)</button></div></section>';
-    h += '<section class="panel"><h2 class="panel-h">Подключение по ссылке</h2><div class="panel-b"><p>Создай ссылку и отправь человеку. Он нажимает её, в Telegram жмёт «Запустить», и сообщения подключаются сами. Ссылка одноразовая, действует 48 часов.</p></div>' +
-      ['ulya', 'maxim'].map(function (w) {
-        return '<div class="opt" style="cursor:default"><span><strong>' + NAMES[w] + '</strong><br><span class="when">' + (chats[w] ? 'Telegram подключён' : 'не подключён') + '</span></span><span class="acts-row"><button type="button" class="btn small primary" data-invite="' + w + '">' + (chats[w] ? 'Новая ссылка' : 'Создать ссылку') + '</button>' +
+    h += '<section class="panel"><h2 class="panel-h">Подключение по ссылке</h2><div class="panel-b"><p>Для тех, кто уже есть на сайте: создай ссылку и отправь человеку. Он нажимает её, в Telegram жмёт «Запустить», и сообщения подключаются сами. Ссылка одноразовая, действует 48 часов. Новых людей приглашай во вкладке «Участники».</p></div>' +
+      members().map(function (w) {
+        return '<div class="opt" style="cursor:default"><span><strong>' + esc(NAMES[w]) + '</strong><br><span class="when">' + (chats[w] ? 'Telegram подключён' : 'не подключён') + '</span></span><span class="acts-row"><button type="button" class="btn small primary" data-invite="' + w + '">' + (chats[w] ? 'Новая ссылка' : 'Создать ссылку') + '</button>' +
           (chats[w] ? '<button type="button" class="btn small danger" data-a="unlink" data-arg="' + w + '" data-confirm="1">Отключить</button>' : '') + '</span></div>';
       }).join('') + '</section>';
     h += '<section class="panel"><h2 class="panel-h">Главный выключатель</h2>' +
       '<label class="opt"><span><strong>Присылать сообщения в Telegram</strong><br><span class="when">Выключишь, и автоматические сообщения не придут никому. Проверка связи и «Написать от сайта» всё равно уходят.</span></span><input type="checkbox" data-flag="all"' + (fl.all === false ? '' : ' checked') + '></label>' +
-      '<label class="opt"><span>Сообщения для Максима</span><input type="checkbox" data-mute="maxim"' + (fl.mute_maxim ? '' : ' checked') + '></label>' +
-      '<label class="opt"><span>Сообщения для Ули</span><input type="checkbox" data-mute="ulya"' + (fl.mute_ulya ? '' : ' checked') + '></label></section>';
+      members().map(function (w) { return '<label class="opt"><span>Сообщения для: ' + esc(NAMES[w]) + '</span><input type="checkbox" data-mute="' + esc(w) + '"' + ((fl.mute || {})[w] ? '' : ' checked') + '></label>'; }).join('') + '</section>';
     h += '<section class="panel"><h2 class="panel-h">Какие уведомления слать</h2>' +
       TG_FLAGS.map(function (t) { return '<label class="opt"><span>' + t[1] + '</span><input type="checkbox" data-flag="' + t[0] + '"' + (fl[t[0]] === false ? '' : ' checked') + '></label>'; }).join('') + '</section>';
     h += '<section class="panel"><h2 class="panel-h">Запустить сейчас</h2><div class="panel-b"><p>Сводка приходит только тебе. Напоминания уходят тем, у кого событие или план начинается в ближайший час.</p><div class="acts-row">' +
       '<button type="button" class="btn" data-a="run" data-arg="digest">Прислать мне сводку</button><button type="button" class="btn" data-a="run" data-arg="remind">Разослать напоминания</button></div></div></section>';
     h += '<section class="panel"><h2 class="panel-h">Написать от сайта</h2><form class="form" id="tg-form">' +
-      '<label>Кому<select id="tg-to"><option value="ulya">Уле</option><option value="maxim">Мне</option></select></label>' +
+      '<label>Кому<select id="tg-to">' + members().map(function (w) { return '<option value="' + esc(w) + '">' + (w === 'maxim' ? 'Мне' : esc(NAMES[w])) + '</option>'; }).join('') + '</select></label>' +
       '<label class="wide">Текст<input id="tg-text" required maxlength="500" placeholder="Например: заходи на сайт, я добавил план"></label>' +
       '<button type="submit" class="btn primary">Отправить</button></form></section>';
     return h;
@@ -1856,7 +1904,7 @@ details.up summary { padding: 12px var(--pad); cursor: pointer; color: var(--acc
   /* --- Журнал действий --- */
   function admLog(rows) {
     rows = rows || [];
-    var chips = [['', 'Все'], ['ulya', 'Уля'], ['maxim', 'Максим']];
+    var chips = [['', 'Все']].concat(ORDER.map(function (w) { return [w, NAMES[w]]; }));
     var h = '<div class="sub" id="lsub">' + chips.map(function (c) { return '<button type="button" data-lw="' + c[0] + '" aria-pressed="' + (logWho === c[0]) + '">' + c[1] + '</button>'; }).join('') + '</div><section class="panel">';
     var shown = rows.filter(function (r) { return !logWho || r.who === logWho; });
     if (!shown.length) h += '<div class="empty">Записей нет.</div>';
@@ -1884,9 +1932,12 @@ details.up summary { padding: 12px var(--pad); cursor: pointer; color: var(--acc
     var a = b.getAttribute('data-a'), arg = b.getAttribute('data-arg'), r;
     b.disabled = true;
     try {
-      if (a === 'lock' || a === 'unlock') { await arpc('vx_admin_lock', { p_on: a === 'lock' }); await loadAdmin(); admSay(a === 'lock' ? 'Сайт закрыт для Ули.' : 'Сайт открыт.'); }
-      else if (a === 'unlink') { await arpc('vx_tg_unlink', { p_name: arg }); await loadAdmin(); admSay('Telegram отключён: ' + NAMES[arg] + '.'); }
-      else if (a === 'kick') { r = await arpc('vx_admin_kick', {}); await loadAdmin(); admSay('Закрыто устройств Ули: ' + (r || 0) + '.'); }
+      if (a === 'lock' || a === 'unlock') { await arpc('vx_admin_lock', { p_on: a === 'lock' }); await loadAdmin(); admSay(a === 'lock' ? 'Сайт закрыт для остальных.' : 'Сайт открыт.'); }
+      else if (a === 'unlink') { await arpc('vx_tg_unlink', { p_name: arg }); await loadAdmin(); admSay('Telegram отключён: ' + nameOf(arg) + '.'); }
+      else if (a === 'kick') { r = await arpc('vx_admin_kick', { p_name: arg }); await loadAdmin(); admSay('Закрыто устройств (' + nameOf(arg) + '): ' + (r || 0) + '.'); }
+      else if (a === 'reset') { mReset(arg); }
+      else if (a === 'member-off' || a === 'member-on') { await arpc('vx_admin_member_set', { p_name: arg, p_off: a === 'member-off' }); await loadData(); await loadAdmin(); admSay(nameOf(arg) + (a === 'member-off' ? ': доступ закрыт, данные сохранены.' : ': доступ возвращён.')); }
+      else if (a === 'inv-clear') { r = await arpc('vx_admin_member_invites_clear', {}); await loadAdmin(); admSay('Приглашений отменено: ' + (r || 0) + '.'); }
       else if (a === 'purge') {
         r = await arpc('vx_admin_purge', { p_what: arg }); await loadData(); render();
         admSay(r >= 0 ? 'Удалено записей: ' + r + '.' : 'Не получилось.');
@@ -1920,7 +1971,13 @@ details.up summary { padding: 12px var(--pad); cursor: pointer; color: var(--acc
     if (b.isConnected) { b.disabled = false; b.removeAttribute('data-armed'); if (b.getAttribute('data-old')) b.textContent = b.getAttribute('data-old'); }
   }
   async function admChange(e) {
-    var chk = e.target.closest('[data-adm-chk]'), fl = e.target.closest('[data-flag]'), mu = e.target.closest('[data-mute]');
+    var chk = e.target.closest('[data-adm-chk]'), fl = e.target.closest('[data-flag]'), mu = e.target.closest('[data-mute]'), rg = e.target.closest('[data-reg]');
+    if (rg) {
+      var ron = rg.checked;
+      try { await arpc('vx_admin_set', { p_key: 'open_reg', p_on: ron }); admSay(ron ? 'Открытая регистрация включена.' : 'Открытая регистрация выключена: только по приглашению.'); }
+      catch (err) { rg.checked = !ron; admSay('Не удалось сохранить.'); }
+      return;
+    }
     if (mu) {
       var recv = mu.checked;
       try { await arpc('vx_admin_set', { p_key: 'tg_mute_' + mu.getAttribute('data-mute'), p_on: !recv }); admSay(recv ? 'Сообщения включены.' : 'Сообщения отключены.'); }
@@ -1936,17 +1993,9 @@ details.up summary { padding: 12px var(--pad); cursor: pointer; color: var(--acc
   }
   async function admSubmit(e) {
     var f = e.target;
-    if (f.id === 'rc-form') {
+    if (f.id === 'mi-form') {
       e.preventDefault();
-      var nw = $('rc-new').value.trim(), msg = $('rc-msg');
-      if (!/^[0-9]{6,12}$/.test(nw)) { msg.textContent = 'Код: от 6 до 12 цифр.'; return; }
-      msg.textContent = 'Сохраняем…';
-      try {
-        var r = await arpc('vx_admin_reset_code', { p_new: nw });
-        msg.textContent = r === 'ok' ? 'Готово: код Ули изменён, её устройства вышли. Передай ей новый код.' :
-          r === 'taken' ? 'Этот код совпадает с твоим, выбери другой.' : r === 'bad_new' ? 'Код: от 6 до 12 цифр.' : 'Не получилось.';
-        if (r === 'ok') $('rc-new').value = '';
-      } catch (err) { msg.textContent = 'Нет связи с сервером.'; }
+      mMemberInvite($('mi-note').value.trim());
     } else if (f.id === 'tg-form') {
       e.preventDefault();
       var txt = $('tg-text').value.trim(); if (!txt) return;
@@ -1959,9 +2008,84 @@ details.up summary { padding: 12px var(--pad); cursor: pointer; color: var(--acc
   }
   function statusBadge(ev, who) {
     var v = ev.votes[who];
-    var t = v === 'yes' ? (who === 'ulya' ? 'согласна' : 'согласен') : v === 'no' ? 'отказ' : 'ждёт';
-    return '<span class="badge ' + (v || '') + '">' + NAMES[who] + ': ' + t + '</span>';
+    var t = v === 'yes' ? (FEM[who] ? 'согласна' : 'согласен') : v === 'no' ? 'отказ' : 'ждёт';
+    return '<span class="badge ' + (v || '') + '">' + esc(NAMES[who]) + ': ' + t + '</span>';
   }
+
+  /* --- Участники: приглашение нового человека через бота, сброс пароля, отключение --- */
+  function admMem(o) {
+    var mem = o.members || [], u = o.users || {}, chats = (o.tg || {}).chats || {}, rg = o.reg || {};
+    var h = '<section class="panel"><h2 class="panel-h">Новый участник</h2><div class="panel-b">' +
+      '<p>Создай ссылку и отправь человеку. Он нажимает её, в Telegram жмёт «Запустить», пишет боту своё имя и придумывает пароль. После этого бот присылает ему ссылку на сайт, а в списке участников появляется новый человек с отдельной страницей. Ссылка одноразовая, действует 7 дней.</p>' +
+      '<form class="form" id="mi-form"><label>Для кого (заметка для себя, по желанию)<input id="mi-note" maxlength="40" autocomplete="off" placeholder="Например: Антон"></label><button class="btn primary" type="submit">Создать приглашение</button></form>' +
+      (rg.pending ? '<p class="when">Неиспользованных приглашений: ' + rg.pending + '</p><button type="button" class="btn small" data-a="inv-clear" data-confirm="1">Отменить все приглашения</button>' : '') + '</div></section>';
+    h += '<section class="panel"><h2 class="panel-h">Регистрация через бота</h2>' +
+      '<label class="opt"><span><strong>Открытая регистрация</strong><br><span class="when">Выключено: аккаунт можно создать только по твоей ссылке-приглашению. Если включить, зарегистрироваться сможет любой, кто нажмёт «Запустить» у бота. Включай ненадолго.</span></span><input type="checkbox" data-reg="open"' + (rg.open ? ' checked' : '') + '></label>' +
+      kvs([['Приём сообщений от Telegram (webhook)', rg.webhook ? 'включён' : 'выключен: бот не сможет регистрировать людей'], ['Последнее сообщение боту', rg.last ? esc(fmtDt(rg.last)) : 'ещё не было']].concat(rg.err ? [['Последняя ошибка бота', esc(rg.err)]] : [])) + '</section>';
+    h += '<section class="panel"><h2 class="panel-h">Участники (' + mem.length + ')</h2>';
+    mem.forEach(function (m) {
+      var x = u[m.name] || {}, root = m.name === 'maxim';
+      h += '<div class="mrow"><div class="mi">' + av(m.name) + '<div><strong>' + esc(m.title) + '</strong>' + (m.off ? ' <span class="badge no">отключён</span>' : '') + (root ? ' <span class="badge">админ</span>' : '') +
+        '<br><span class="when">' + (chats[m.name] ? 'Telegram подключён' : 'Telegram не подключён') + ' · устройств: ' + (x.sessions || 0) + ' · был: ' + esc(ago(x.last_seen)) + '</span></div></div><div class="acts-row">' +
+        '<button type="button" class="btn small" data-invite="' + esc(m.name) + '">' + (chats[m.name] ? 'Новая ссылка Telegram' : 'Подключить Telegram') + '</button>' +
+        (root ? '' : '<button type="button" class="btn small" data-a="reset" data-arg="' + esc(m.name) + '">Сбросить пароль</button>' +
+          '<button type="button" class="btn small" data-a="kick" data-arg="' + esc(m.name) + '" data-confirm="1">Выйти на всех устройствах</button>' +
+          (m.off ? '<button type="button" class="btn small primary" data-a="member-on" data-arg="' + esc(m.name) + '">Вернуть доступ</button>'
+                 : '<button type="button" class="btn small danger" data-a="member-off" data-arg="' + esc(m.name) + '" data-confirm="1">Отключить</button>')) +
+        '</div></div>';
+    });
+    return h + '</section><p class="local-note">Пароли хранятся только в виде хэша, увидеть их нельзя. Если человек забыл пароль, задай ему новый кнопкой «Сбросить пароль». Отключённый участник не может войти, его записи остаются.</p>';
+  }
+  function mReset(name) {
+    openModal('Новый пароль: ' + nameOf(name), '<form class="mform" id="rs-form"><label class="fld wide">Пароль (6–12 цифр, не такой же, как у другого участника)<input id="rs-new" type="text" inputmode="numeric" autocomplete="off" pattern="[0-9]{6,12}" maxlength="12" required></label>' +
+      '<p class="form-msg wide" id="rs-msg" role="status">Все устройства человека выйдут. Новый пароль передай ему сам.</p>' +
+      '<div class="btns"><button type="button" class="btn" data-close-modal>Отмена</button><button type="submit" class="btn primary">Задать пароль</button></div></form>');
+    $('rs-form').addEventListener('submit', async function (e) {
+      e.preventDefault();
+      var nw = $('rs-new').value.trim(), msg = $('rs-msg');
+      if (!/^[0-9]{6,12}$/.test(nw)) { msg.textContent = 'Пароль: от 6 до 12 цифр.'; return; }
+      msg.textContent = 'Сохраняем…';
+      try {
+        var r = await arpc('vx_admin_reset_code', { p_new: nw, p_name: name });
+        if (r === 'ok') { closeModal(); admSay('Пароль изменён: ' + nameOf(name) + '. Передай ему новый пароль.'); toast('Пароль изменён'); }
+        else msg.textContent = r === 'taken' ? 'Такой пароль уже есть у другого участника, выбери другой.' : r === 'bad_new' ? 'Пароль: от 6 до 12 цифр.' : 'Не получилось.';
+      } catch (err) { msg.textContent = 'Нет связи с сервером.'; }
+    });
+  }
+  async function mMemberInvite(note) {
+    openModal('Приглашение участника', '<div id="mv-body"><p class="when">Готовлю ссылку…</p></div>');
+    var tok;
+    try { tok = await arpc('vx_admin_member_invite', { p_note: note || null }); } catch (e) { closeModal(); showErr(e); return; }
+    if (!tok) { closeModal(); toast('Не получилось: слишком много неиспользованных приглашений (максимум 10)', true); return; }
+    var link = 'https://t.me/' + BOT_USER + '?start=' + tok, box = $('mv-body'); if (!box) return;
+    var before = members().length;
+    box.innerHTML = '<p>Отправь эту ссылку человеку' + (note ? ' (' + esc(note) + ')' : '') + '. Он нажимает её, в Telegram жмёт «Запустить», пишет боту имя и придумывает пароль. Ссылка одноразовая, действует 7 дней.</p>' +
+      '<label class="fld" style="margin:12px 0">Ссылка<input id="mv-link" readonly value="' + esc(link) + '"></label>' +
+      '<div class="acts-row"><button type="button" class="btn primary" id="mv-copy">Скопировать</button>' + (navigator.share ? '<button type="button" class="btn" id="mv-share">Поделиться</button>' : '') +
+      '<a class="btn" href="' + esc(link) + '" target="_blank" rel="noopener">Открыть бота</a></div><p class="form-msg" id="mv-st" role="status" style="margin-top:12px">Жду, пока человек зарегистрируется…</p>';
+    $('mv-copy').addEventListener('click', async function () {
+      try { await navigator.clipboard.writeText(link); }
+      catch (e) { var i = $('mv-link'); i.select(); try { document.execCommand('copy'); } catch (e2) {} }
+      toast('Ссылка скопирована');
+    });
+    if ($('mv-share')) $('mv-share').addEventListener('click', function () { navigator.share({ title: 'VEXXO', text: 'Присоединяйся к VEXXO', url: link }).catch(function () {}); });
+    for (var i = 0; i < 200 && $('mv-st'); i++) {
+      await sleep(4000);
+      if (!$('mv-st')) return;
+      try {
+        var o = await arpc('vx_admin_overview', {});
+        if (!$('mv-st') || !o) continue;
+        var cur = (o.members || []).filter(function (m) { return !m.off; });
+        if (cur.length > before) {
+          var nm = cur[cur.length - 1];
+          $('mv-st').textContent = 'Присоединился: ' + nm.title + ' ✓'; toast('Новый участник: ' + nm.title);
+          await loadData(); if (view === 'admin') loadAdmin();
+          return;
+        }
+      } catch (e) {}
+    }
+  }
+
 
 
   /* ----- помощник Claude: сворачиваемая панель, история и сохранённые ответы (хранятся только на этом устройстве) ----- */
@@ -2157,7 +2281,7 @@ details.up summary { padding: 12px var(--pad); cursor: pointer; color: var(--acc
         return;
       }
     }
-    if (view !== 'home' && view !== 'cal' && view !== 'tasks' && view !== 'draw' && view !== 'me' && view !== 'admin' && sub[view] === 'sched') render();
+    if (isPerson(view) && sub[view] === 'sched') render();
   }
   setInterval(refresh, 5000);
   document.addEventListener('visibilitychange', refresh);
@@ -2167,7 +2291,25 @@ details.up summary { padding: 12px var(--pad); cursor: pointer; color: var(--acc
   try { sessionStorage.removeItem('vexxo:code'); } catch (e) {}
   paintIcons(); paintDots();
   var saved = loadToken();
-  if (/^[0-9a-f]{64}$/.test(saved)) resume(saved);
+  // Ссылка из бота: сайт/#k=<билет> открывает аккаунт без ввода пароля. Билет одноразовый.
+  var ticket = (/^#k=([0-9a-f]{32,64})$/.exec(location.hash || '') || [])[1] || '';
+  async function ticketLogin(t) {
+    busyLogin = true; hint.textContent = 'Входим по ссылке…';
+    var tok = null, why = '';
+    try { tok = await rpc('vx_ticket_use', { p_ticket: t, p_device: deviceLabel() }); }
+    catch (e) { why = /site_locked/.test(e.message || '') ? 'Сайт временно закрыт. Попробуй позже.' : /too_many_attempts/.test(e.message || '') ? 'Слишком много попыток. Подожди 5 минут.' : 'Нет связи с сервером. Обнови страницу.'; }
+    if (tok) {
+      CODE = tok;
+      try { await loadData(); saveToken(tok); showApp(); return; }
+      catch (e) { CODE = ''; why = 'Нет связи с сервером. Обнови страницу.'; }
+    } else if (!why) why = 'Ссылка уже использована или устарела. Войди по паролю или напиши боту /site, чтобы получить новую.';
+    busyLogin = false;
+    if (/^[0-9a-f]{64}$/.test(saved)) resume(saved); else hint.textContent = why;
+  }
+  if (ticket) {
+    try { history.replaceState(null, '', location.pathname + location.search); } catch (e) {}
+    ticketLogin(ticket);
+  } else if (/^[0-9a-f]{64}$/.test(saved)) resume(saved);
 })();
 </script>
 </body>

@@ -9,14 +9,17 @@ INDEX = 'file://' + os.path.abspath(os.path.join(os.path.dirname(__file__), '..'
 TOKEN = 'a' * 64
 NOW = datetime.datetime.now(ZoneInfo('Europe/Moscow'))
 def d(n=0): return (NOW.date() + datetime.timedelta(days=n)).isoformat()
+USERS = [{"name": "ulya", "title": "Уля", "fem": True, "off": False}, {"name": "maxim", "title": "Максим", "fem": False, "off": False},
+         {"name": "anya", "title": "Аня", "fem": True, "off": False}]
 data = {
-  "me": "maxim",
+  "me": "maxim", "users": USERS,
   "events": [{"id": "e1", "title": "Прогулка", "date": d(3), "time": "18:00:00", "by": "maxim", "votes": {"maxim": "yes"}, "cat": "personal", "task": None},
              {"id": "e2", "title": "Совместная работа", "date": d(0), "time": "20:00:00", "by": "ulya", "votes": {"ulya": "yes"}, "cat": "work", "task": "t1"}],
   "items": [
     {"id": "p1", "kind": "plan", "owner": "maxim", "text": "Кино", "when": "", "done": False, "date": d(2), "time": "19:30:00", "by": "ulya", "status": "todo", "priority": "mid", "due": None, "created": NOW.isoformat()},
     {"id": "t1", "kind": "task", "owner": "maxim", "text": "Купить краску", "when": "", "done": False, "date": None, "time": None, "by": "maxim", "status": "doing", "priority": "high", "due": d(0), "created": NOW.isoformat()},
     {"id": "t2", "kind": "task", "owner": "maxim", "text": "Сдать эскиз", "when": "", "done": False, "date": None, "time": None, "by": "ulya", "status": "todo", "priority": "mid", "due": d(-2), "created": NOW.isoformat()},
+    {"id": "t5", "kind": "task", "owner": "anya", "text": "Подготовить макет", "when": "", "done": False, "date": None, "time": None, "by": "maxim", "status": "todo", "priority": "mid", "due": None, "created": NOW.isoformat()},
     {"id": "t3", "kind": "task", "owner": "ulya", "text": "Забрать посылку", "when": "", "done": False, "date": None, "time": None, "by": "ulya", "status": "review", "priority": "low", "due": None, "created": NOW.isoformat()},
     {"id": "t4", "kind": "task", "owner": "maxim", "text": "Старое дело", "when": "", "done": True, "date": None, "time": None, "by": "maxim", "status": "done", "priority": "mid", "due": None, "created": NOW.isoformat()}],
   "comments": [{"id": "c1", "item": "t1", "by": "ulya", "body": "Возьми белую", "at": NOW.isoformat()}],
@@ -29,9 +32,12 @@ data = {
   "trash": [], "tg_muted": False
 }
 OVERVIEW = {"locked": False, "counts": {"events": 1, "events_upcoming": 1, "tasks_open": 1, "tasks_done": 2, "plans_open": 1, "plans_done": 0, "files": 3, "sched": 1, "log": 12},
-  "storage": {"bytes": 3145728, "objects": 4}, "users": {"ulya": {"sessions": 1, "last_seen": "2026-10-14T17:00:00+00:00", "last_login": "2026-10-13T10:00:00+00:00"}, "maxim": {"sessions": 2, "last_seen": "2026-10-14T17:50:00+00:00", "last_login": "2026-10-14T09:00:00+00:00"}},
+  "storage": {"bytes": 3145728, "objects": 4}, "users": {"ulya": {"sessions": 1, "last_seen": "2026-10-14T17:00:00+00:00", "last_login": "2026-10-13T10:00:00+00:00"}, "maxim": {"sessions": 2, "last_seen": "2026-10-14T17:50:00+00:00", "last_login": "2026-10-14T09:00:00+00:00"}, "anya": {"sessions": 1, "last_seen": "2026-10-14T17:30:00+00:00", "last_login": "2026-10-14T10:00:00+00:00"}},
+  "members": [{"name": "ulya", "title": "Уля", "fem": True, "off": False, "joined": "2026-09-01T10:00:00+00:00"}, {"name": "maxim", "title": "Максим", "fem": False, "off": False, "joined": "2026-09-01T10:00:00+00:00"},
+              {"name": "anya", "title": "Аня", "fem": True, "off": False, "joined": "2026-10-14T10:00:00+00:00"}],
+  "reg": {"open": False, "pending": 1, "webhook": True, "last": "2026-10-14T10:00:00+00:00", "err": None},
   "failed": {"count_24h": 3, "last": "2026-10-14T12:00:00+00:00"},
-  "tg": {"token": True, "chats": {"ulya": True, "maxim": True}, "ok": 5, "fail": 0, "flags": {"all": True, "mute_ulya": False, "mute_maxim": False, "items": True, "events": True, "votes": True, "edits": True, "remind": True, "digest": False}},
+  "tg": {"token": True, "chats": {"ulya": True, "maxim": True, "anya": True}, "ok": 5, "fail": 0, "flags": {"all": True, "mute": {"ulya": False, "maxim": False, "anya": False}, "mute_ulya": False, "mute_maxim": False, "items": True, "events": True, "votes": True, "edits": True, "remind": True, "digest": False}},
   "cron": [{"name": "vexxo-remind", "schedule": "*/5 * * * *", "active": True, "last_at": "2026-10-14T17:55:00+00:00", "last_status": "succeeded", "last_msg": ""}]}
 LOGINS = {"locked": False, "sessions": [{"name": "ulya", "device": "iPhone Safari", "created": "2026-10-13T10:00:00+00:00", "last_seen": "2026-10-14T17:00:00+00:00"}],
   "logins": [{"at": "2026-10-14T09:00:00+00:00", "name": "maxim", "kind": "login", "device": "Windows Chrome"}], "failed": {"count_24h": 3, "count_5m": 0, "last": "2026-10-14T12:00:00+00:00"}}
@@ -44,8 +50,10 @@ MOCK = {'vx_session_start': json.dumps(TOKEN), 'vx_load': json.dumps(data), 'vx_
   'vx_admin_overview': json.dumps(OVERVIEW), 'vx_admin_logins': json.dumps(LOGINS), 'vx_admin_storage': json.dumps(STORAGE), 'vx_admin_log': json.dumps(LOG),
   'vx_admin_lock': 'true', 'vx_admin_kick': '1', 'vx_admin_reset_code': '"ok"', 'vx_admin_purge': '1', 'vx_admin_clean_orphans': '1', 'vx_admin_backup': json.dumps({"events": [], "items": []}),
   'vx_admin_tg': '17', 'vx_admin_tg_status': json.dumps({"state": "ok", "status": 200}), 'vx_admin_set': json.dumps({}), 'vx_admin_run': 'true', 'vx_me_tg': 'true'}
+MOCK.update({'vx_admin_member_invite': json.dumps('fedcba9876543210fedcba9876543210'), 'vx_admin_member_set': 'true', 'vx_admin_member_invites_clear': '1',
+  'vx_me_profile': json.dumps({"name": "maxim", "title": "Макс", "fem": False}), 'vx_ticket_use': json.dumps(TOKEN)})
 MOCK.update({'vx_invite_create': json.dumps('0123456789abcdef0123456789abcdef'), 'vx_tg_poll_now': '0', 'vx_tg_unlink': 'true',
-  'vx_invite_status': json.dumps({"linked": {"ulya": True, "maxim": False}, "pending": {"ulya": True, "maxim": True}, "error": None})})
+  'vx_invite_status': json.dumps({"linked": {"ulya": True, "maxim": False, "anya": True}, "pending": {"ulya": True, "maxim": True, "anya": False}, "error": None})})
 calls = []
 fails = []
 def check(name, cond):
@@ -82,6 +90,7 @@ with sync_playwright() as p:
     check('главная: задачи на сегодня, просроченные и события', 'купить краску' in t and 'сдать эскиз' in t and 'прогулка' in t and 'совместная работа' in t)
     check('главная: последние изменения и быстрые действия', 'добавлена задача' in t and 'быстрые действия' in t)
     check('меню слева сгруппировано', all(x in pg.inner_text('#side').lower() for x in ('работа', 'люди', 'настройки', 'главная', 'календарь', 'задачи', 'чертежи')))
+    check('в меню «Люди» все трое, включая нового участника', all(x in pg.inner_text('#side') for x in ('Уля', 'Максим', 'Аня')))
     check('текущий раздел отмечен', pg.locator('#side [data-go="home"][aria-current="page"]').count() == 1)
     check('нет кнопки «Спросить Claude про идеи»', pg.locator('#ask-idea').count() == 0)
     pg.screenshot(path=f'{SHOTS}/home.png', full_page=True)
@@ -90,6 +99,7 @@ with sync_playwright() as p:
     # ---- создание задачи одним окном ----
     pg.click('#new-btn'); pg.wait_for_selector('#cr-form')
     pg.click('#cr-go'); check('пустое название не отправляется', not sent('vx_item_add') and 'название' in pg.inner_text('#cr-msg').lower())
+    check('в окне создания можно выбрать нового участника', 'Для: Аня' in pg.inner_text('#cr-form select[name=o]'))
     pg.fill('#cr-form input[name=t]', 'Заказать стекло'); pg.select_option('#cr-form select[name=p]', 'high'); pg.fill('#cr-form input[name=due]', d(5)); pg.select_option('#cr-form select[name=o]', 'ulya')
     pg.click('#cr-go'); pg.wait_for_selector('#modal', state='hidden')
     check('задача создаётся с приоритетом, сроком и исполнителем', sent('vx_item_add', '"p_kind":"task"', '"p_priority":"high"', f'"p_due":"{d(5)}"', '"p_owner":"ulya"'))
@@ -139,6 +149,7 @@ with sync_playwright() as p:
     check('правка события со сменой категории', sent('vx_event_edit', 'в парке', '"p_cat":"other"'))
     pg.click('.mgrid [data-ev="e2"]'); pg.wait_for_selector('#ev-edit')
     check('чужое событие нельзя править, но Максим админ', pg.locator('#ev-edit input[name=t]').is_enabled())
+    check('в ответах на событие видны все трое', all(x in pg.inner_text('#modal-card') for x in ('Уля:', 'Максим:', 'Аня:')))
     pg.click('[data-vote="yes"]'); pg.wait_for_timeout(300)
     check('ответ на событие', sent('vx_event_vote', '"p_id":"e2"', '"p_vote":"yes"'))
     pg.click('[data-del-ev="e2"]'); pg.click('#cd-yes'); pg.wait_for_timeout(250)
@@ -159,6 +170,11 @@ with sync_playwright() as p:
     pg.click('[data-del-sc="s1"]'); pg.wait_for_timeout(250)
     check('пара удаляется', sent('vx_sched_del'))
     pg.click('#side [data-go="ulya"]'); check('страница Ули: её задачи', 'забрать посылку' in pg.inner_text('#view').lower())
+    pg.click('#side [data-go="anya"]'); pg.wait_for_selector('#qa-form')
+    check('страница нового участника: её задача и заголовок', 'подготовить макет' in pg.inner_text('#view').lower() and 'аня' in pg.inner_text('#view h1').lower())
+    pg.fill('#qa-form input[name=t]', 'Проверить размеры'); pg.click('#qa-form button[type=submit]'); pg.wait_for_timeout(250)
+    check('задача новому участнику уходит с его именем', sent('vx_item_add', 'Проверить размеры', '"p_owner":"anya"'))
+    pg.screenshot(path=f'{SHOTS}/person-anya.png', full_page=True)
     # ---- чертежи ----
     pg.click('#side [data-go="draw"]'); pg.wait_for_selector('.dgroup')
     check('версии одного чертежа в одной карточке', pg.locator('.dgroup').count() == 2 and 'Предыдущие версии (1)' in pg.inner_text('#view'))
@@ -193,6 +209,9 @@ with sync_playwright() as p:
     pg.screenshot(path=f'{SHOTS}/me-light.png', full_page=True)
     pg.click('[data-pref="theme:dark"]'); pg.click('[data-pref="density:compact"]'); check('компактная плотность', pg.evaluate("document.documentElement.getAttribute('data-density')") == 'compact')
     pg.select_option('#pf-start', 'tasks'); check('стартовая страница запоминается', 'tasks' in pg.evaluate("localStorage.getItem('vexxo:prefs')"))
+    pg.fill('#pr-name', 'Макс'); pg.select_option('#pr-fem', '0'); pg.click('#prof-form button[type=submit]'); pg.wait_for_timeout(400)
+    check('профиль: имя и обращение отправляются', sent('vx_me_profile', '"p_title":"Макс"', '"p_fem":false', TOKEN))
+    pg.click('#side [data-go="me"]') if pg.locator('#cc-cur').count() == 0 else None
     pg.fill('#cc-cur', '654321'); pg.fill('#cc-new', '123456'); pg.fill('#cc-rep', '123457'); pg.click('#code-form button[type=submit]')
     check('разные новые коды не отправляются', 'не совпадают' in pg.inner_text('#cc-msg'))
     pg.fill('#cc-rep', '123456'); pg.click('#code-form button[type=submit]'); pg.wait_for_timeout(300)
@@ -212,18 +231,33 @@ with sync_playwright() as p:
     t = pg.inner_text('#view').lower()
     check('сводка: счётчики, Telegram и задания', 'задачи' in t and 'бот' in t and 'подключён' in t and 'напоминания' in t)
     pg.screenshot(path=f'{SHOTS}/admin-sum.png', full_page=True)
-    pg.click('[data-as="acc"]'); pg.wait_for_selector('#rc-form')
+    pg.click('[data-as="acc"]'); pg.wait_for_selector('[data-a="lock"]')
     check('доступ: устройства и журнал входов', 'iPhone Safari' in pg.inner_text('#view') and 'Windows Chrome' in pg.inner_text('#view'))
     btn = pg.locator('[data-a="lock"]'); btn.click()
     check('закрыть сайт требует второго нажатия', not sent('vx_admin_lock') and 'точно' in btn.inner_text().lower())
     btn.click(); pg.wait_for_timeout(400)
     check('закрытие сайта отправляется', sent('vx_admin_lock', '"p_on":true', TOKEN))
-    pg.fill('#rc-new', '12345'); pg.click('#rc-form button[type=submit]')
-    check('короткий код Ули не уходит', not sent('vx_admin_reset_code'))
-    pg.fill('#rc-new', '246810'); pg.click('#rc-form button[type=submit]'); pg.wait_for_timeout(300)
-    check('сброс кода Ули', sent('vx_admin_reset_code', '"p_new":"246810"') and 'Готово' in pg.inner_text('#rc-msg'))
-    k = pg.locator('[data-a="kick"]'); k.click(); k.click(); pg.wait_for_timeout(300)
-    check('выход за Улю', sent('vx_admin_kick'))
+    # ---- участники ----
+    pg.click('[data-as="mem"]'); pg.wait_for_selector('#mi-form')
+    check('участники: все трое с отдельными кнопками', all(x in pg.inner_text('#view') for x in ('Уля', 'Максим', 'Аня')) and pg.locator('[data-a="reset"]').count() == 2)
+    pg.fill('#mi-note', 'Антон'); pg.click('#mi-form button[type=submit]'); pg.wait_for_selector('#mv-link')
+    check('приглашение нового участника: ссылка на бота с одноразовым кодом', sent('vx_admin_member_invite', 'Антон', TOKEN) and pg.input_value('#mv-link') == 'https://t.me/maxim_claude_1488_bot?start=fedcba9876543210fedcba9876543210')
+    pg.screenshot(path=f'{SHOTS}/member-invite.png'); pg.keyboard.press('Escape')
+    pg.screenshot(path=f'{SHOTS}/admin-members.png', full_page=True)
+    pg.click('[data-a="reset"][data-arg="ulya"]'); pg.wait_for_selector('#rs-form')
+    pg.fill('#rs-new', '12345'); pg.click('#rs-form button[type=submit]')
+    check('короткий пароль не уходит', not sent('vx_admin_reset_code'))
+    pg.fill('#rs-new', '246810'); pg.click('#rs-form button[type=submit]'); pg.wait_for_selector('#modal', state='hidden')
+    check('сброс пароля выбранного участника', sent('vx_admin_reset_code', '"p_new":"246810"', '"p_name":"ulya"'))
+    k = pg.locator('[data-a="kick"][data-arg="anya"]'); k.click(); k.click(); pg.wait_for_timeout(300)
+    check('выход за выбранного участника', sent('vx_admin_kick', '"p_name":"anya"'))
+    o = pg.locator('[data-a="member-off"][data-arg="anya"]'); o.click(); o.click(); pg.wait_for_timeout(300)
+    check('отключение участника', sent('vx_admin_member_set', '"p_name":"anya"', '"p_off":true'))
+    pg.click('[data-reg="open"]'); pg.wait_for_timeout(200)
+    check('открытая регистрация переключается', sent('vx_admin_set', 'open_reg', '"p_on":true'))
+    c0 = pg.locator('[data-a="inv-clear"]'); c0.click(); c0.click(); pg.wait_for_timeout(300)
+    check('отмена всех приглашений', sent('vx_admin_member_invites_clear'))
+    pg.click('[data-as="acc"]'); pg.wait_for_selector('[data-a="lock"]')
     pg.click('[data-as="data"]'); pg.wait_for_selector('#dsub')
     check('данные: событие обоих людей и кнопки чистки', 'прогулка' in pg.inner_text('#view').lower() and 'скачать полную копию' in pg.inner_text('#view').lower())
     pg.click('[data-ds="tasks"]'); pg.click('[data-adm-chk="t2"]'); pg.wait_for_timeout(300)
@@ -242,7 +276,7 @@ with sync_playwright() as p:
     check('чистка лишних файлов', sent('vx_admin_clean_orphans'))
     pg.click('[data-as="tg"]'); pg.wait_for_selector('#tg-form')
     pg.click('#adm-body [data-invite="ulya"]'); pg.wait_for_selector('#inv-link')
-    check('админка: ссылка для Ули', sent('vx_invite_create', '"p_name":"ulya"') and 'отправь эту ссылку уле' in pg.inner_text('#modal-card').lower())
+    check('админка: ссылка для Ули', sent('vx_invite_create', '"p_name":"ulya"') and 'отправь эту ссылку: участнику «уля»' in pg.inner_text('#modal-card').lower())
     pg.keyboard.press('Escape')
     u = pg.locator('[data-a="unlink"][data-arg="ulya"]'); u.click(); u.click(); pg.wait_for_timeout(300)
     check('админка: отключить Telegram Ули', sent('vx_tg_unlink', '"p_name":"ulya"'))
@@ -266,14 +300,14 @@ with sync_playwright() as p:
     pg.screenshot(path=f'{SHOTS}/admin-log.png', full_page=True)
     # ---- телефон: нижнее меню и отсутствие горизонтальной прокрутки ----
     pg.set_viewport_size({'width': 390, 'height': 844})
-    for v in ('home', 'cal', 'tasks', 'draw', 'maxim', 'me', 'admin'):
+    for v in ('home', 'cal', 'tasks', 'draw', 'maxim', 'anya', 'me', 'admin'):
         pg.evaluate(f"location.hash = '#{v}'"); pg.wait_for_timeout(350)
         w = pg.evaluate("[document.documentElement.scrollWidth, window.innerWidth]")
         check(f'телефон: «{v}» без горизонтальной прокрутки ({w[0]} из {w[1]})', w[0] <= w[1])
     pg.evaluate("location.hash = '#home'"); pg.wait_for_timeout(300)
     check('телефон: меню снизу, боковое скрыто', pg.locator('#bottom').is_visible() and not pg.locator('#side').is_visible())
     pg.screenshot(path=f'{SHOTS}/m-home.png', full_page=True)
-    pg.click('#bottom [data-more]'); check('телефон: «Ещё» открывает людей и кабинет', all(x in pg.inner_text('#sheet-card') for x in ('Уля', 'Максим', 'Кабинет', 'Админ', 'Выйти')))
+    pg.click('#bottom [data-more]'); check('телефон: «Ещё» открывает людей и кабинет', all(x in pg.inner_text('#sheet-card') for x in ('Уля', 'Максим', 'Аня', 'Кабинет', 'Админ', 'Выйти')))
     pg.screenshot(path=f'{SHOTS}/m-sheet.png'); pg.click('[data-close-sheet]', position={'x': 10, 'y': 10})
     pg.click('#bottom [data-go="cal"]'); pg.screenshot(path=f'{SHOTS}/m-cal.png', full_page=True)
     pg.click('#bottom [data-go="tasks"]'); pg.screenshot(path=f'{SHOTS}/m-tasks.png', full_page=True)
@@ -287,6 +321,15 @@ with sync_playwright() as p:
     pg.click('#side [data-logout]'); pg.wait_for_selector('#lock:not([hidden])')
     check('выход стирает токен и закрывает сессию', pg.evaluate("localStorage.getItem('vexxo:session')") is None and any(c[0] == 'vx_logout' for c in calls))
     pg.screenshot(path=f'{SHOTS}/lock.png')
+    # ---- вход по ссылке из бота (#k=билет) ----
+    calls.clear(); pg.goto(INDEX + '?t=1#k=' + 'b' * 32); pg.wait_for_selector('#app:not([hidden])')
+    check('ссылка из бота: билет обменивается на сессию', sent('vx_ticket_use', 'b' * 32) and not sent('vx_session_start'))
+    check('после входа билет убран из адреса', '#k=' not in pg.evaluate('location.href') and pg.evaluate("localStorage.getItem('vexxo:session')") == TOKEN)
+    pg.click('#side [data-logout]'); pg.wait_for_selector('#lock:not([hidden])')
+    MOCK['vx_ticket_use'] = 'null'
+    pg.goto(INDEX + '?t=2#k=' + 'c' * 32); pg.wait_for_function("document.getElementById('hint').textContent.indexOf('устарела') >= 0")
+    check('использованная ссылка не пускает и объясняет', pg.locator('#lock:not([hidden])').count() == 1 and 'устарела' in pg.inner_text('#hint'))
+    MOCK['vx_ticket_use'] = json.dumps(TOKEN)
     # ---- Уля: вкладки «Админ» нет, даже по прямой ссылке ----
     data['me'] = 'ulya'; MOCK['vx_load'] = json.dumps(data)
     pg.goto(INDEX + '#admin'); pg.evaluate("localStorage.removeItem('vexxo:session')"); pg.reload(); pg.wait_for_selector('#lock:not([hidden])')

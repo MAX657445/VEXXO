@@ -301,6 +301,35 @@ body:has(#lock:not([hidden])) { padding: 0; }
 .older summary { cursor: pointer; color: var(--muted); font-size: 14px; }
 .older .ver { padding: 8px 0 0; display: flex; justify-content: space-between; gap: 10px; flex-wrap: wrap; }
 @media (max-width: 440px) { .tabs { gap: 16px; } .tabs button { letter-spacing: .12em; padding-inline: 0; } }
+
+/* ---------- Админ ---------- */
+.stats { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 1px; background: var(--line); border: 1px solid var(--line); }
+.stat { background: var(--surface); padding: 14px 16px; display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.stat span { color: var(--muted); font-size: 11px; letter-spacing: .16em; text-transform: uppercase; font-weight: 600; }
+.stat b { font-size: 30px; font-weight: 800; letter-spacing: -.02em; line-height: 1.1; }
+.stat small { color: var(--muted); font-size: 13px; overflow-wrap: anywhere; }
+.kvs { margin: 0; padding: 4px 16px 14px; display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1.25fr); gap: 8px 16px; font-size: 15px; }
+.kvs + .kvs { border-top: 1px solid var(--line); padding-top: 14px; }
+.kvs dt { color: var(--muted); overflow-wrap: anywhere; }
+.kvs dd { margin: 0; text-align: right; font-family: var(--font-mono); font-size: 14px; overflow-wrap: anywhere; }
+.banner { padding: 12px 16px; background: var(--ink); color: var(--bg); border: 1px solid var(--ink); font-size: 12px; font-weight: 600; letter-spacing: .12em; text-transform: uppercase; width: 100%; }
+.banner.ok { background: transparent; color: var(--ink); }
+.bar { width: 100%; height: 8px; border: 1px solid var(--line); background: var(--tint); }
+.bar i { display: block; height: 100%; background: var(--ink); }
+.adm-msg { margin: 0; min-height: 1.5em; color: var(--muted); font-size: 14px; }
+.opt { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 12px 16px; cursor: pointer; }
+.opt + .opt { border-top: 1px solid var(--line); }
+.opt input { width: 22px; height: 22px; accent-color: #0B0B0B; flex: none; }
+.lr { display: grid; grid-template-columns: 6.4rem minmax(0, 1fr); gap: 2px 12px; padding: 10px 16px; font-size: 14px; }
+.lr + .lr { border-top: 1px solid var(--line); }
+.lr time { font-family: var(--font-mono); color: var(--muted); font-size: 13px; }
+.lr .d { color: var(--muted); overflow-wrap: anywhere; }
+.btn.danger { border-color: var(--bad); color: var(--bad); }
+.btn[data-armed] { background: var(--bad); border-color: var(--bad); color: #fff; }
+.acts-row { display: flex; gap: 8px; flex-wrap: wrap; }
+.ses { display: flex; justify-content: space-between; gap: 12px; padding: 10px 16px; font-size: 14px; flex-wrap: wrap; }
+.ses + .ses { border-top: 1px solid var(--line); }
+.ses span:last-child { color: var(--muted); font-family: var(--font-mono); font-size: 13px; }
 </style>
 </head>
 <body>
@@ -339,6 +368,7 @@ body:has(#lock:not([hidden])) { padding: 0; }
     <button type="button" role="tab" data-v="ulya" aria-selected="false">Уля</button>
     <button type="button" role="tab" data-v="maxim" aria-selected="false">Максим</button>
     <button type="button" role="tab" data-v="me" aria-selected="false">Кабинет</button>
+    <button type="button" role="tab" data-v="admin" aria-selected="false" hidden>Админ</button>
   </nav>
   <main class="view" id="view" aria-live="polite"></main>
   <p class="err" id="err" role="alert" hidden></p>
@@ -428,6 +458,8 @@ body:has(#lock:not([hidden])) { padding: 0; }
     else if (e && e.message === 'size') m = 'Файл больше 25 МБ.';
     else if (e && e.message === 'upload') m = 'Не удалось загрузить файл. Попробуй ещё раз.';
     else if (e && /too_many_attempts/.test(e.message || '')) m = 'Слишком много неверных кодов. Подожди 5 минут.';
+    else if (e && /site_locked/.test(e.message || '')) m = 'Сайт временно закрыт. Попробуй позже.';
+    else if (e && e.status === 404) m = 'В базе нет нужной функции. Нужно применить supabase/migration-5.sql.';
     errEl.textContent = m; errEl.hidden = false;
   }
   async function act(fn) {
@@ -471,11 +503,21 @@ body:has(#lock:not([hidden])) { padding: 0; }
     lock.hidden = true; app.hidden = false; fab.hidden = false;
     paintMe(); go(fromHash() || 'cal');
   }
+  // Короткое название устройства для журнала входов (например «iPhone Safari»).
+  function deviceLabel() {
+    var u = navigator.userAgent || '';
+    var os = /iPhone/.test(u) ? 'iPhone' : /iPad/.test(u) ? 'iPad' : /Android/.test(u) ? 'Android' : /Windows/.test(u) ? 'Windows' : /Mac OS X|Macintosh/.test(u) ? 'Mac' : /Linux/.test(u) ? 'Linux' : 'Устройство';
+    var br = /Edg\//.test(u) ? 'Edge' : /OPR\/|Opera/.test(u) ? 'Opera' : /YaBrowser/.test(u) ? 'Яндекс' : /Firefox|FxiOS/.test(u) ? 'Firefox' : /CriOS|Chrome/.test(u) ? 'Chrome' : /Safari/.test(u) ? 'Safari' : '';
+    var pwa = false; try { pwa = !!(navigator.standalone || (window.matchMedia && matchMedia('(display-mode: standalone)').matches)); } catch (e) {}
+    return (os + ' ' + br + (pwa ? ' (экран «Домой»)' : '')).replace(/\s+/g, ' ').trim();
+  }
+  var LOCKED_HINT = 'Сайт временно закрыт. Зайдёт сам, когда откроют.';
+  var lockRetry = 0;
   async function tryLogin(c) {
     busyLogin = true;
     var tok;
-    try { tok = await rpc('vx_session_start', { p_code: c }); }
-    catch (e) { return badCode(/too_many_attempts/.test(e.message || '') ? 'Слишком много попыток. Подожди 5 минут.' : 'Нет связи с сервером. Попробуй ещё раз.'); }
+    try { tok = await rpc('vx_session_start', { p_code: c, p_device: deviceLabel() }); }
+    catch (e) { return badCode(/too_many_attempts/.test(e.message || '') ? 'Слишком много попыток. Подожди 5 минут.' : /site_locked/.test(e.message || '') ? 'Сайт временно закрыт. Попробуй позже.' : 'Нет связи с сервером. Попробуй ещё раз.'); }
     if (!tok) return badCode('Неверный код, попробуй ещё раз');
     CODE = tok;
     try { await loadData(); } catch (e) { CODE = ''; return badCode('Нет связи с сервером. Попробуй ещё раз.'); }
@@ -488,9 +530,12 @@ body:has(#lock:not([hidden])) { padding: 0; }
     catch (e) {
       CODE = '';
       if (e && e.forbidden) dropToken();
-      busyLogin = false; hint.textContent = e && e.forbidden ? HINT0 : 'Нет связи с сервером. Обнови страницу.';
+      busyLogin = false;
+      if (e && /site_locked/.test(e.message || '')) { hint.textContent = LOCKED_HINT; clearTimeout(lockRetry); lockRetry = setTimeout(function () { if (!lock.hidden && !busyLogin) resume(tok); }, 20000); return; }
+      hint.textContent = e && e.forbidden ? HINT0 : 'Нет связи с сервером. Обнови страницу.';
       return;
     }
+    clearTimeout(lockRetry);
     showApp();
   }
   function press(k) {
@@ -505,8 +550,9 @@ body:has(#lock:not([hidden])) { padding: 0; }
     if (lock.hidden) return;
     if (/^[0-9]$/.test(e.key)) press(e.key); else if (e.key === 'Backspace') press('back'); else if (e.key === 'Enter') press('ok');
   });
-  function leave() {
-    dropToken(); CODE = ''; state.me = ''; state.raw = null;
+  function leave(keep) {
+    if (!keep) dropToken();
+    CODE = ''; state.me = ''; state.raw = null;
     app.hidden = true; lock.hidden = false; fab.hidden = true; $('chat-panel').hidden = true;
     entered = ''; paintDots(); hint.textContent = HINT0;
   }
@@ -514,12 +560,16 @@ body:has(#lock:not([hidden])) { padding: 0; }
     var t = CODE; leave();
     if (t) rpc('vx_logout', { p_session: t }).catch(function () {});
   });
-  function paintMe() { $('me-name').textContent = NAMES[state.me] || ''; }
+  function paintMe() {
+    $('me-name').textContent = NAMES[state.me] || '';
+    $('tabs').querySelector('[data-v="admin"]').hidden = state.me !== 'maxim';
+  }
 
   /* ----- навигация ----- */
   var view = 'cal', sub = { ulya: 'plans', maxim: 'plans' };
-  function fromHash() { var h = (location.hash || '').replace('#', ''); return (h === 'cal' || h === 'me' || NAMES[h]) ? h : ''; }
+  function fromHash() { var h = (location.hash || '').replace('#', ''); return (h === 'cal' || h === 'me' || NAMES[h] || (h === 'admin' && state.me === 'maxim')) ? h : ''; }
   function go(v) {
+    if (v === 'admin' && state.me !== 'maxim') v = 'cal';
     view = v;
     var b = $('tabs').querySelectorAll('button');
     for (var i = 0; i < b.length; i++) b[i].setAttribute('aria-selected', b[i].getAttribute('data-v') === v ? 'true' : 'false');
@@ -850,6 +900,349 @@ body:has(#lock:not([hidden])) { padding: 0; }
     });
   }
 
+  /* ----- админ (только Максим; сервер всё равно проверяет, кто спрашивает) ----- */
+  var ADM_TABS = [['sum', 'Сводка'], ['acc', 'Доступ'], ['data', 'Данные'], ['files', 'Чертежи'], ['tg', 'Telegram'], ['log', 'Журнал']];
+  var asub = 'sum', dsub = 'events', logWho = '', admSeq = 0, admCache = {};
+  var LOGIN_KINDS = { login: 'Вход', logout: 'Выход', logout_all: 'Выход на всех устройствах', code_change: 'Смена кода', code_reset: 'Код сброшен Максимом', kick: 'Закрыты все устройства', lock: 'Сайт закрыт', unlock: 'Сайт открыт' };
+  var LOG_ACTIONS = {
+    event_add: 'Предложено событие', event_edit: 'Изменено событие', event_vote: 'Ответ на событие', event_del: 'Удалено событие',
+    plan_add: 'Добавлен план', plan_del: 'Удалён план', task_add: 'Добавлена задача', task_del: 'Удалена задача',
+    item_done: 'Отметка выполнения', item_edit: 'Изменена запись', file_add: 'Загружен чертёж', file_del: 'Удалён чертёж',
+    sched_add: 'Добавлена пара', sched_del: 'Удалена пара', admin_clean: 'Чистка хранилища', admin_tg: 'Сообщение из админки',
+    admin_setting: 'Настройка уведомлений', admin_run: 'Ручной запуск', admin_purge: 'Чистка данных'
+  };
+  var TG_FLAGS = [
+    ['items', 'Новая задача или план от другого человека'], ['events', 'Новый общий план на согласование'], ['votes', 'Ответ на событие (согласен или отказ)'],
+    ['edits', 'Изменение общего плана'], ['remind', 'Напоминание за час'], ['digest', 'Утренняя сводка в 8:00']
+  ];
+  function sleep(ms) { return new Promise(function (r) { setTimeout(r, ms); }); }
+  function fmtDt(iso) {
+    if (!iso) return '—';
+    var d = new Date(iso); if (isNaN(d.getTime())) return '—';
+    return new Intl.DateTimeFormat('ru-RU', { timeZone: 'Europe/Moscow', day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit', hourCycle: 'h23' }).format(d).replace(',', '');
+  }
+  function ago(iso) {
+    if (!iso) return 'ещё не было';
+    var m = Math.round((Date.now() - new Date(iso).getTime()) / 60000);
+    if (m < 1) return 'только что';
+    if (m < 60) return m + ' мин назад';
+    var h = Math.floor(m / 60); if (h < 24) return h + ' ч назад';
+    var d = Math.floor(h / 24); return d + ' ' + pl(d, 'день', 'дня', 'дней') + ' назад';
+  }
+  function fmtSize(b) {
+    b = Number(b) || 0;
+    if (b < 1024) return b + ' Б';
+    if (b < 1048576) return (b / 1024).toFixed(1).replace('.', ',') + ' КБ';
+    if (b < 1073741824) return (b / 1048576).toFixed(1).replace('.', ',') + ' МБ';
+    return (b / 1073741824).toFixed(2).replace('.', ',') + ' ГБ';
+  }
+  function addDays(iso, n) { var d = new Date(iso + 'T12:00:00Z'); d.setUTCDate(d.getUTCDate() + n); return d.toISOString().slice(0, 10); }
+  function arpc(fn, args) {
+    var a = { p_code: CODE }; for (var k in args) a[k] = args[k];
+    return rpc(fn, a).then(function (r) {
+      if (r && r.error === 'forbidden') { var e = new Error('forbidden'); e.forbidden = true; throw e; }
+      return r;
+    });
+  }
+  function admSay(t) { var el = $('adm-msg'); if (el) el.textContent = t || ''; }
+  function downloadJson(name, obj) {
+    var a = document.createElement('a');
+    a.href = URL.createObjectURL(new Blob([JSON.stringify(obj, null, 2)], { type: 'application/json' }));
+    a.download = name;
+    document.body.appendChild(a); a.click(); a.remove();
+    setTimeout(function () { URL.revokeObjectURL(a.href); }, 1000);
+  }
+  function stat(label, big, small) { return '<div class="stat"><span>' + label + '</span><b>' + big + '</b><small>' + small + '</small></div>'; }
+  function kvs(rows) { return '<dl class="kvs">' + rows.map(function (r) { return '<dt>' + r[0] + '</dt><dd>' + r[1] + '</dd>'; }).join('') + '</dl>'; }
+
+  function renderAdmin() {
+    $('view').innerHTML = '<h1>Админ</h1><div class="sub" id="asub">' +
+      ADM_TABS.map(function (t) { return '<button type="button" data-as="' + t[0] + '" aria-pressed="' + (asub === t[0]) + '">' + t[1] + '</button>'; }).join('') +
+      '</div><div class="row"><p class="adm-msg" id="adm-msg" role="status"></p><button type="button" class="btn small" data-a="reload">Обновить</button></div>' +
+      '<div class="view" id="adm-body"><p class="lead">Загружаю…</p></div>';
+    $('asub').addEventListener('click', function (e) {
+      var b = e.target.closest('button[data-as]'); if (!b) return;
+      asub = b.getAttribute('data-as'); editing = ''; renderAdmin();
+    });
+    var box = $('view');
+    box.querySelector('.row').addEventListener('click', function (e) { if (e.target.closest('[data-a="reload"]')) loadAdmin(); });
+    var body = $('adm-body');
+    body.addEventListener('click', admClick);
+    body.addEventListener('change', admChange);
+    body.addEventListener('submit', admSubmit);
+    loadAdmin();
+  }
+
+  async function loadAdmin() {
+    var my = ++admSeq, s = asub, html = '';
+    try {
+      if (s === 'sum') html = admSum(await arpc('vx_admin_overview', {}));
+      else if (s === 'acc') html = admAcc(await arpc('vx_admin_logins', {}));
+      else if (s === 'data') html = admData();
+      else if (s === 'files') html = admFiles(await arpc('vx_admin_storage', {}));
+      else if (s === 'tg') html = admTg(await arpc('vx_admin_overview', {}));
+      else { admCache.log = await arpc('vx_admin_log', { p_limit: 200 }); html = admLog(admCache.log); }
+    } catch (e) {
+      if (my !== admSeq || view !== 'admin' || !$('adm-body')) return;
+      $('adm-body').innerHTML = '<p class="err">' + (e && e.forbidden ? 'Нет доступа. Выйди и войди заново.' :
+        e && e.status === 404 ? 'В базе нет функций админки. Нужно применить supabase/migration-5.sql.' : 'Не удалось загрузить. Нажми «Обновить».') + '</p>';
+      return;
+    }
+    if (my !== admSeq || view !== 'admin' || asub !== s || !$('adm-body')) return;
+    $('adm-body').innerHTML = html;
+  }
+
+  /* --- Сводка --- */
+  function admSum(o) {
+    var c = o.counts || {}, u = o.users || {}, f = o.failed || {}, tg = o.tg || {}, st = o.storage || {}, chats = tg.chats || {};
+    var h = o.locked ? '<div class="banner">Сайт закрыт для Ули. Открыть: вкладка «Доступ»</div>' : '';
+    h += '<div class="stats">' +
+      stat('События', c.events_upcoming || 0, 'впереди, всего ' + (c.events || 0)) +
+      stat('Задачи', c.tasks_open || 0, 'открытых, выполнено ' + (c.tasks_done || 0)) +
+      stat('Планы', c.plans_open || 0, 'открытых, выполнено ' + (c.plans_done || 0)) +
+      stat('Чертежи', c.files || 0, fmtSize(st.bytes) + ' в хранилище') +
+      stat('Пары', c.sched || 0, 'в расписании') +
+      stat('Журнал', c.log || 0, 'записей') + '</div>';
+    h += '<section class="panel"><h2 class="panel-h">Люди</h2>';
+    ['ulya', 'maxim'].forEach(function (n) {
+      var x = u[n] || {};
+      h += kvs([[NAMES[n], (x.sessions || 0) + ' ' + pl(x.sessions || 0, 'устройство', 'устройства', 'устройств')],
+                ['Последняя активность', esc(ago(x.last_seen))], ['Последний вход по коду', esc(fmtDt(x.last_login))]]);
+    });
+    h += '</section><section class="panel"><h2 class="panel-h">Вход по коду</h2>' +
+      kvs([['Неверных кодов за сутки', String(f.count_24h || 0)], ['Последний неверный', esc(fmtDt(f.last))]]) + '</section>';
+    h += '<section class="panel"><h2 class="panel-h">Telegram</h2>' +
+      kvs([['Бот', tg.token ? 'подключён' : 'нет токена'], ['Чат Максима', chats.maxim ? 'есть' : 'нет'], ['Чат Ули', chats.ulya ? 'есть' : 'нет'],
+           ['Отправок за последние часы', (tg.ok || 0) + ' ок, ' + (tg.fail || 0) + ' с ошибкой']]) + '</section>';
+    h += '<section class="panel"><h2 class="panel-h">Задания по расписанию</h2>';
+    if (!(o.cron || []).length) h += '<div class="panel-b"><p>Заданий не найдено. Напоминания и сводка не будут приходить.</p></div>';
+    else h += kvs((o.cron || []).map(function (j) {
+      var nm = j.name === 'vexxo-remind' ? 'Напоминания (каждые 5 минут)' : j.name === 'vexxo-digest' ? 'Утренняя сводка (8:00)' : esc(j.name);
+      return [nm, (j.active ? 'включено' : 'выключено') + (j.last_at ? ', последний запуск ' + esc(fmtDt(j.last_at)) + (j.last_status ? ' (' + esc(j.last_status) + ')' : '') : ', ещё не запускалось')];
+    }));
+    return h + '</section>';
+  }
+
+  /* --- Доступ --- */
+  function admAcc(d) {
+    var h = '<section class="panel"><h2 class="panel-h">Доступ для Ули</h2><div class="panel-b">' +
+      '<div class="banner' + (d.locked ? '' : ' ok') + '">' + (d.locked ? 'Сайт закрыт: Уля не может войти' : 'Сайт открыт') + '</div>' +
+      '<p>Когда сайт закрыт, Уля видит «Сайт временно закрыт». Её устройства остаются запомненными и заходят сами, как только откроешь. Ты входишь всегда.</p>' +
+      (d.locked ? '<button type="button" class="btn primary" data-a="unlock">Открыть сайт</button>'
+                : '<button type="button" class="btn" data-a="lock" data-confirm="1">Закрыть сайт для Ули</button>') +
+      '</div></section>';
+    h += '<section class="panel"><h2 class="panel-h">Сбросить код Ули</h2><form class="form" id="rc-form">' +
+      '<label class="wide">Новый код (6–12 цифр, не такой же, как у тебя)<input id="rc-new" type="text" inputmode="numeric" autocomplete="off" pattern="[0-9]{6,12}" maxlength="12" required></label>' +
+      '<button type="submit" class="btn primary">Задать код</button><p class="form-msg wide" id="rc-msg" role="status">Её устройства выйдут. Новый код передай ей сам.</p></form></section>';
+    h += '<section class="panel"><h2 class="panel-h">Устройства</h2>';
+    var ss = d.sessions || [];
+    if (!ss.length) h += '<div class="empty">Запомненных устройств нет.</div>';
+    ss.forEach(function (s) { h += '<div class="ses"><span>' + esc(NAMES[s.name] || s.name) + ' · ' + esc(s.device || 'устройство') + '</span><span>' + esc(ago(s.last_seen || s.created)) + '</span></div>'; });
+    h += '<div class="panel-b"><button type="button" class="btn" data-a="kick" data-confirm="1">Выйти за Улю на всех устройствах</button></div></section>';
+    var f = d.failed || {};
+    h += '<section class="panel"><h2 class="panel-h">Журнал входов</h2><p class="local-note" style="margin:12px 16px">Неверных кодов: ' + (f.count_24h || 0) + ' за сутки, последний ' + esc(fmtDt(f.last)) + '.</p>';
+    var lg = d.logins || [];
+    if (!lg.length) h += '<div class="empty">Пока пусто.</div>';
+    lg.forEach(function (x) {
+      h += '<div class="lr"><time>' + esc(fmtDt(x.at)) + '</time><div>' + esc(NAMES[x.name] || x.name) + ': ' + esc(LOGIN_KINDS[x.kind] || x.kind) + (x.device ? '<div class="d">' + esc(x.device) + '</div>' : '') + '</div></div>';
+    });
+    return h + '</section>';
+  }
+
+  /* --- Данные: все записи обоих людей, из уже загруженного состояния --- */
+  function admData() {
+    var subs = [['events', 'События'], ['plans', 'Планы'], ['tasks', 'Задачи'], ['pairs', 'Пары']];
+    var today = moscowNow().date, cutoff = addDays(today, -7), cutoffS = addDays(today, -30);
+    var doneN = 0, oldN = 0, schedOld = 0;
+    ['ulya', 'maxim'].forEach(function (w) { state.plans[w].concat(state.tasks[w]).forEach(function (n) { if (n.done) doneN++; }); state.plans[w].forEach(function (n) { if (n.date && n.date < cutoff) oldN++; }); });
+    state.events.forEach(function (e) { if (e.date < cutoff) oldN++; });
+    state.schedule.forEach(function (r) { if (r.date < cutoffS) schedOld++; });
+    var h = '<section class="panel"><h2 class="panel-h">Резервная копия и чистка</h2><div class="panel-b">' +
+      '<p>В копию входят все записи, расписание, список чертежей со ссылками, настройки и журнал. Коды, токены и chat_id не входят. Сами файлы чертежей скачиваются по ссылкам из копии.</p><div class="acts-row">' +
+      '<button type="button" class="btn primary" data-a="backup">Скачать полную копию</button>' +
+      '<button type="button" class="btn" data-a="purge" data-arg="done" data-confirm="1"' + (doneN ? '' : ' disabled') + '>Удалить выполненные (' + doneN + ')</button>' +
+      '<button type="button" class="btn" data-a="purge" data-arg="old" data-confirm="1"' + (oldN ? '' : ' disabled') + '>События и планы старше 7 дней (' + oldN + ')</button>' +
+      '<button type="button" class="btn" data-a="purge" data-arg="sched" data-confirm="1"' + (schedOld ? '' : ' disabled') + '>Пары старше 30 дней (' + schedOld + ')</button>' +
+      '</div></div></section>';
+    h += '<div class="sub" id="dsub">' + subs.map(function (t) { return '<button type="button" data-ds="' + t[0] + '" aria-pressed="' + (dsub === t[0]) + '">' + t[1] + '</button>'; }).join('') + '</div>';
+    h += '<section class="panel">';
+    if (dsub === 'events') {
+      if (!state.events.length) h += '<div class="empty">Событий нет.</div>';
+      state.events.forEach(function (e) {
+        if (editing === e.id) { h += '<div class="ev one">' + editHtml('event', e.id, e.title, e.date, e.time, true) + '</div>'; return; }
+        h += '<div class="ev"><div><h3>' + esc(e.title) + '</h3><div class="meta"><span class="mono">' + esc(shortDate(e.date)) + ' ' + esc(e.time) + '</span><span>предложил' + (e.by === 'ulya' ? 'а' : '') + ': ' + NAMES[e.by] + '</span></div>' +
+          '<div class="votes" style="margin-top:8px">' + statusBadge(e, 'ulya') + statusBadge(e, 'maxim') + '</div></div>' +
+          '<div class="votes"><button type="button" class="x" data-edit="' + e.id + '" aria-label="Изменить событие">✎</button><button type="button" class="x" data-del-ev="' + e.id + '" aria-label="Удалить событие">✕</button></div></div>';
+      });
+    } else if (dsub === 'plans' || dsub === 'tasks') {
+      var rows = [];
+      ['ulya', 'maxim'].forEach(function (w) { state[dsub][w].forEach(function (n) { rows.push({ w: w, n: n }); }); });
+      if (dsub === 'plans') rows.sort(function (a, b) { var x = (a.n.date || '') + (a.n.time || ''), y = (b.n.date || '') + (b.n.time || ''); return x < y ? -1 : x > y ? 1 : 0; });
+      if (!rows.length) h += '<div class="empty">Записей нет.</div>';
+      h += '<ul class="list">';
+      rows.forEach(function (r) {
+        var n = r.n;
+        if (editing === n.id) { h += '<li class="item one">' + editHtml('item', n.id, n.text, n.date, n.time, dsub === 'plans') + '</li>'; return; }
+        var meta = [NAMES[r.w], n.date ? shortDate(n.date) + ' ' + esc(n.time) : esc(n.when), n.by !== r.w ? 'добавил' + (n.by === 'ulya' ? 'а' : '') + ': ' + NAMES[n.by] : ''].filter(Boolean).join(' · ');
+        h += '<li class="item' + (n.done ? ' done' : '') + '"><input type="checkbox" data-adm-chk="' + n.id + '"' + (n.done ? ' checked' : '') + ' aria-label="Выполнено"><span class="t">' + esc(n.text) + '<br><span class="when">' + meta + '</span></span>' +
+          '<span class="acts"><button type="button" class="x" data-edit="' + n.id + '" aria-label="Изменить">✎</button><button type="button" class="x" data-adm-del="' + n.id + '" aria-label="Удалить">✕</button></span></li>';
+      });
+      h += '</ul>';
+    } else {
+      var ps = state.schedule.slice().sort(function (a, b) { return a.date < b.date ? 1 : a.date > b.date ? -1 : a.pair - b.pair; }).slice(0, 80);
+      if (!ps.length) h += '<div class="empty">Пар нет.</div>';
+      h += '<ul class="list">';
+      ps.forEach(function (r) {
+        h += '<li class="item"><span></span><span class="t">' + esc(r.subject) + (r.room ? ' · ' + esc(r.room) : '') + '<br><span class="when">' + esc(NAMES[r.owner]) + ' · ' + esc(shortDate(r.date)) + ' · ' + r.pair + '-я пара</span></span>' +
+          '<span class="acts"><button type="button" class="x" data-del-sc="' + r.id + '" aria-label="Удалить пару">✕</button></span></li>';
+      });
+      h += '</ul>' + (state.schedule.length > 80 ? '<div class="empty">Показаны последние 80 пар.</div>' : '');
+    }
+    return h + '</section>';
+  }
+
+  /* --- Чертежи и хранилище --- */
+  function admFiles(d) {
+    if (d.error) return '<p class="err">Хранилище недоступно из базы. Чертежи можно смотреть на странице Максима.</p>';
+    var LIMIT = 1073741824, pct = Math.min(100, Math.round((d.bytes || 0) / LIMIT * 100));
+    var pn = { sapr: 'САПР', arch: 'Архитектура' };
+    var h = '<section class="panel"><h2 class="panel-h">Хранилище</h2><div class="panel-b"><div class="bar" aria-hidden="true"><i style="width:' + Math.max(pct, d.bytes ? 1 : 0) + '%"></i></div>' +
+      '<p>Занято <strong>' + fmtSize(d.bytes) + '</strong> из ориентира 1 ГБ (бесплатный тариф Supabase), файлов в хранилище: ' + (d.objects || 0) + '.</p></div></section>';
+    h += '<section class="panel"><h2 class="panel-h">Файлы чертежей</h2>';
+    var fl = d.files || [];
+    if (!fl.length) h += '<div class="empty">Файлов нет.</div>';
+    fl.forEach(function (f) {
+      h += '<div class="ver"><span class="t">' + esc(f.title) + '</span><span class="when">' + (f.missing ? '<span class="badge no">файла нет</span>' : esc(fmtSize(f.size))) + '</span>' +
+        '<button type="button" class="x" data-del-dr="' + f.id + '" aria-label="Удалить файл">✕</button>' +
+        '<span class="note">' + esc(pn[f.project] || f.project) + ' · ' + esc(f.date) + (f.filename ? ' · ' + esc(f.filename) : '') + '</span></div>';
+    });
+    h += '</section><section class="panel"><h2 class="panel-h">Лишние файлы</h2><div class="panel-b">';
+    var orp = d.orphans || [];
+    if (!orp.length) h += '<p>Лишних файлов нет: у каждого файла в хранилище есть запись.</p>';
+    else {
+      h += '<p>Файлов без записи: <strong>' + orp.length + '</strong> (' + fmtSize(d.orphan_bytes) + '). Они остались после неудачной загрузки или старой версии сайта. Очистка стирает их из хранилища насовсем.</p>';
+      h += orp.slice(0, 20).map(function (o) { return '<div class="ses" style="padding:4px 0;width:100%"><span>' + esc(o.name.split('/').pop()) + '</span><span>' + esc(fmtSize(o.size)) + '</span></div>'; }).join('');
+      h += '<button type="button" class="btn danger" data-a="clean" data-confirm="1">Стереть лишние файлы (' + orp.length + ')</button>';
+    }
+    return h + '</div></section>';
+  }
+
+  /* --- Telegram --- */
+  function admTg(o) {
+    var tg = o.tg || {}, fl = tg.flags || {}, chats = tg.chats || {};
+    var h = '<section class="panel"><h2 class="panel-h">Состояние</h2>' +
+      kvs([['Бот', tg.token ? 'подключён' : 'нет токена'], ['Чат Максима', chats.maxim ? 'есть' : 'нет'], ['Чат Ули', chats.ulya ? 'есть' : 'нет'],
+           ['Отправок за последние часы', (tg.ok || 0) + ' ок, ' + (tg.fail || 0) + ' с ошибкой']]) +
+      '<div class="panel-b"><button type="button" class="btn primary" data-a="tg-test">Проверить связь (сообщение мне)</button></div></section>';
+    h += '<section class="panel"><h2 class="panel-h">Какие уведомления слать</h2>' +
+      TG_FLAGS.map(function (t) { return '<label class="opt"><span>' + t[1] + '</span><input type="checkbox" data-flag="' + t[0] + '"' + (fl[t[0]] === false ? '' : ' checked') + '></label>'; }).join('') + '</section>';
+    h += '<section class="panel"><h2 class="panel-h">Запустить сейчас</h2><div class="panel-b"><p>Сводка приходит только тебе. Напоминания уходят тем, у кого событие или план начинается в ближайший час.</p><div class="acts-row">' +
+      '<button type="button" class="btn" data-a="run" data-arg="digest">Прислать мне сводку</button><button type="button" class="btn" data-a="run" data-arg="remind">Разослать напоминания</button></div></div></section>';
+    h += '<section class="panel"><h2 class="panel-h">Написать от сайта</h2><form class="form" id="tg-form">' +
+      '<label>Кому<select id="tg-to"><option value="ulya">Уле</option><option value="maxim">Мне</option></select></label>' +
+      '<label class="wide">Текст<input id="tg-text" required maxlength="500" placeholder="Например: заходи на сайт, я добавил план"></label>' +
+      '<button type="submit" class="btn primary">Отправить</button></form></section>';
+    return h;
+  }
+
+  /* --- Журнал действий --- */
+  function admLog(rows) {
+    rows = rows || [];
+    var chips = [['', 'Все'], ['ulya', 'Уля'], ['maxim', 'Максим']];
+    var h = '<div class="sub" id="lsub">' + chips.map(function (c) { return '<button type="button" data-lw="' + c[0] + '" aria-pressed="' + (logWho === c[0]) + '">' + c[1] + '</button>'; }).join('') + '</div><section class="panel">';
+    var shown = rows.filter(function (r) { return !logWho || r.who === logWho; });
+    if (!shown.length) h += '<div class="empty">Записей нет.</div>';
+    shown.forEach(function (r) {
+      h += '<div class="lr"><time>' + esc(fmtDt(r.at)) + '</time><div>' + esc(NAMES[r.who] || r.who || '—') + ': ' + esc(LOG_ACTIONS[r.action] || r.action) + (r.detail ? '<div class="d">' + esc(r.detail) + '</div>' : '') + '</div></div>';
+    });
+    return h + '</section><p class="local-note">Хранятся последние 120 дней. Показаны последние 200 действий.</p>';
+  }
+
+  /* --- обработчики --- */
+  function armed(btn) {
+    if (!btn.hasAttribute('data-confirm')) return true;
+    if (btn.hasAttribute('data-armed')) return true;
+    btn.setAttribute('data-armed', '1'); btn.setAttribute('data-old', btn.textContent); btn.textContent = 'Точно? Нажми ещё раз';
+    setTimeout(function () { if (btn.isConnected && btn.hasAttribute('data-armed')) { btn.removeAttribute('data-armed'); btn.textContent = btn.getAttribute('data-old'); } }, 4000);
+    return false;
+  }
+  async function waitClean() { for (var i = 0; i < 100 && cleaning; i++) await sleep(150); }
+  async function admClick(e) {
+    var ds = e.target.closest('[data-ds]'), lw = e.target.closest('[data-lw]'), di = e.target.closest('[data-adm-del]'), b = e.target.closest('[data-a]');
+    if (ds) { dsub = ds.getAttribute('data-ds'); editing = ''; $('adm-body').innerHTML = admData(); return; }
+    if (lw) { logWho = lw.getAttribute('data-lw'); $('adm-body').innerHTML = admLog(admCache.log); return; }
+    if (di) { act(function () { return rpc('vx_item_del', { p_code: CODE, p_id: di.getAttribute('data-adm-del') }); }); return; }
+    if (!b || b.disabled || !armed(b)) return;
+    var a = b.getAttribute('data-a'), arg = b.getAttribute('data-arg'), r;
+    b.disabled = true;
+    try {
+      if (a === 'lock' || a === 'unlock') { await arpc('vx_admin_lock', { p_on: a === 'lock' }); await loadAdmin(); admSay(a === 'lock' ? 'Сайт закрыт для Ули.' : 'Сайт открыт.'); }
+      else if (a === 'kick') { r = await arpc('vx_admin_kick', {}); await loadAdmin(); admSay('Закрыто устройств Ули: ' + (r || 0) + '.'); }
+      else if (a === 'purge') {
+        r = await arpc('vx_admin_purge', { p_what: arg }); await loadData(); render();
+        admSay(r >= 0 ? 'Удалено записей: ' + r + '.' : 'Не получилось.');
+      } else if (a === 'clean') {
+        r = await arpc('vx_admin_clean_orphans', {}); await loadData(); await waitClean(); await loadAdmin();
+        admSay('Лишних файлов стёрто: ' + (r || 0) + '.');
+      } else if (a === 'backup') {
+        r = await arpc('vx_admin_backup', {});
+        downloadJson('vexxo-backup-' + moscowNow().date + '.json', r); admSay('Копия скачана.');
+      } else if (a === 'run') {
+        await arpc('vx_admin_run', { p_job: arg });
+        admSay(arg === 'digest' ? 'Сводка отправлена. Проверь Telegram.' : 'Напоминания разосланы (если было кому).');
+      } else if (a === 'tg-test') {
+        admSay('Отправляю…');
+        var rid = await arpc('vx_admin_tg', { p_to: 'maxim', p_text: 'Проверка связи: сайт VEXXO → Telegram' });
+        if (!rid) { admSay('Не отправлено: нет токена бота или chat_id.'); }
+        else {
+          var res = 'Ответа от Telegram пока нет. Проверь сообщение через минуту.';
+          for (var i = 0; i < 8; i++) {
+            await sleep(1500);
+            var st = await arpc('vx_admin_tg_status', { p_id: rid });
+            if (st.state === 'ok') { res = 'Telegram принял сообщение (код ' + st.status + '). Оно должно быть в чате.'; break; }
+            if (st.state === 'fail') { res = 'Telegram отказал: ' + (st.status || st.error || 'ошибка') + ' ' + String(st.body || '').slice(0, 120); break; }
+          }
+          admSay(res);
+        }
+      }
+    } catch (err) {
+      admSay(err && err.forbidden ? 'Нет доступа. Выйди и войди заново.' : 'Не получилось: ' + (/site_locked|Failed to fetch/.test(err.message || '') ? 'нет связи.' : 'ошибка сервера.'));
+    }
+    if (b.isConnected) { b.disabled = false; b.removeAttribute('data-armed'); if (b.getAttribute('data-old')) b.textContent = b.getAttribute('data-old'); }
+  }
+  async function admChange(e) {
+    var chk = e.target.closest('[data-adm-chk]'), fl = e.target.closest('[data-flag]');
+    if (chk) { var done = chk.checked; act(function () { return rpc('vx_item_set', { p_code: CODE, p_id: chk.getAttribute('data-adm-chk'), p_done: done }); }); return; }
+    if (fl) {
+      var on = fl.checked;
+      try { await arpc('vx_admin_set', { p_key: 'tg_' + fl.getAttribute('data-flag'), p_on: on }); admSay('Сохранено.'); }
+      catch (err) { fl.checked = !on; admSay('Не удалось сохранить.'); }
+    }
+  }
+  async function admSubmit(e) {
+    var f = e.target;
+    if (f.id === 'rc-form') {
+      e.preventDefault();
+      var nw = $('rc-new').value.trim(), msg = $('rc-msg');
+      if (!/^[0-9]{6,12}$/.test(nw)) { msg.textContent = 'Код: от 6 до 12 цифр.'; return; }
+      msg.textContent = 'Сохраняем…';
+      try {
+        var r = await arpc('vx_admin_reset_code', { p_new: nw });
+        msg.textContent = r === 'ok' ? 'Готово: код Ули изменён, её устройства вышли. Передай ей новый код.' :
+          r === 'taken' ? 'Этот код совпадает с твоим, выбери другой.' : r === 'bad_new' ? 'Код: от 6 до 12 цифр.' : 'Не получилось.';
+        if (r === 'ok') $('rc-new').value = '';
+      } catch (err) { msg.textContent = 'Нет связи с сервером.'; }
+    } else if (f.id === 'tg-form') {
+      e.preventDefault();
+      var txt = $('tg-text').value.trim(); if (!txt) return;
+      try {
+        var rid = await arpc('vx_admin_tg', { p_to: $('tg-to').value, p_text: txt });
+        admSay(rid ? 'Отправлено.' : 'Не отправлено: нет токена бота или chat_id.');
+        if (rid) $('tg-text').value = '';
+      } catch (err) { admSay('Нет связи с сервером.'); }
+    }
+  }
+
   // Скачивание: файл забирается и сохраняется под своим именем (заголовок «скачать» хранилище не отдаёт). Если не вышло, открываем ссылку.
   async function saveFile(a) {
     var url = a.getAttribute('data-dl'), name = a.getAttribute('data-name') || 'file', old = a.textContent;
@@ -863,7 +1256,7 @@ body:has(#lock:not([hidden])) { padding: 0; }
     a.textContent = old;
   }
   function render() {
-    if (view === 'cal') renderCal(); else if (view === 'me') renderMe(); else renderPerson(view);
+    if (view === 'cal') renderCal(); else if (view === 'me') renderMe(); else if (view === 'admin') renderAdmin(); else renderPerson(view);
   }
   $('view').addEventListener('click', function (e) {
     var v = e.target.closest('[data-vote]'), d = e.target.closest('[data-del-ev]'), dr = e.target.closest('[data-del-dr]'),
@@ -911,8 +1304,14 @@ body:has(#lock:not([hidden])) { padding: 0; }
       var sig = JSON.stringify(d);
       if (sig !== lastSig) { lastSig = sig; state.me = d.me; applyData(d); render(); if (state.me === 'maxim') cleanTrash(); }
       errEl.hidden = true;
-    } catch (e) {}
-    if (view !== 'cal' && view !== 'me' && sub[view] === 'sched') render();
+    } catch (e) {
+      if (e && /site_locked/.test(e.message || '')) {
+        var t = CODE; leave(true); hint.textContent = LOCKED_HINT;
+        clearTimeout(lockRetry); lockRetry = setTimeout(function () { if (!lock.hidden && !busyLogin) resume(t); }, 20000);
+        return;
+      }
+    }
+    if (view !== 'cal' && view !== 'me' && view !== 'admin' && sub[view] === 'sched') render();
   }
   setInterval(refresh, 5000);
   document.addEventListener('visibilitychange', refresh);

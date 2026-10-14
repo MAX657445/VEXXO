@@ -44,6 +44,8 @@ MOCK = {'vx_session_start': json.dumps(TOKEN), 'vx_load': json.dumps(data), 'vx_
   'vx_admin_overview': json.dumps(OVERVIEW), 'vx_admin_logins': json.dumps(LOGINS), 'vx_admin_storage': json.dumps(STORAGE), 'vx_admin_log': json.dumps(LOG),
   'vx_admin_lock': 'true', 'vx_admin_kick': '1', 'vx_admin_reset_code': '"ok"', 'vx_admin_purge': '1', 'vx_admin_clean_orphans': '1', 'vx_admin_backup': json.dumps({"events": [], "items": []}),
   'vx_admin_tg': '17', 'vx_admin_tg_status': json.dumps({"state": "ok", "status": 200}), 'vx_admin_set': json.dumps({}), 'vx_admin_run': 'true', 'vx_me_tg': 'true'}
+MOCK.update({'vx_invite_create': json.dumps('0123456789abcdef0123456789abcdef'), 'vx_tg_poll_now': '0', 'vx_tg_unlink': 'true',
+  'vx_invite_status': json.dumps({"linked": {"ulya": True, "maxim": False}, "pending": {"ulya": True, "maxim": True}, "error": None})})
 calls = []
 fails = []
 def check(name, cond):
@@ -196,7 +198,13 @@ with sync_playwright() as p:
     pg.fill('#cc-rep', '123456'); pg.click('#code-form button[type=submit]'); pg.wait_for_timeout(300)
     check('смена кода отправляется с токеном', sent('vx_change_code', TOKEN, '"p_new":"123456"'))
     check('сообщение об успехе', 'Код изменён' in pg.inner_text('#cc-msg'))
-    pg.click('#tg-self'); pg.wait_for_timeout(300)
+    pg.wait_for_selector('#tg-acts button')
+    check('кабинет: Telegram не подключён, есть кнопка подключения', 'не подключён' in pg.inner_text('#tg-state') and pg.locator('#tg-acts [data-invite="me"]').count() == 1 and not pg.locator('#tg-opt').is_visible())
+    pg.click('#tg-acts [data-invite="me"]'); pg.wait_for_selector('#inv-link')
+    check('подключение: ссылка на бота с одноразовым кодом', sent('vx_invite_create', '"p_name":"maxim"') and pg.input_value('#inv-link') == 'https://t.me/maxim_claude_1488_bot?start=0123456789abcdef0123456789abcdef')
+    check('подключение: кнопки «Открыть бота» и «Скопировать»', pg.locator('#inv-open').get_attribute('href').startswith('https://t.me/') and pg.locator('#inv-copy').count() == 1)
+    pg.screenshot(path=f'{SHOTS}/invite.png'); pg.keyboard.press('Escape')
+    pg.evaluate("document.getElementById('tg-opt').hidden = false"); pg.click('#tg-self'); pg.wait_for_timeout(300)
     check('личный выключатель Telegram в кабинете', sent('vx_me_tg', '"p_on":false', TOKEN))
     # ---- админка (Максим) ----
     check('вкладка «Админ» видна Максиму', pg.locator('#side [data-go="admin"]').is_visible())
@@ -233,6 +241,11 @@ with sync_playwright() as p:
     c = pg.locator('[data-a="clean"]'); c.click(); c.click(); pg.wait_for_timeout(400)
     check('чистка лишних файлов', sent('vx_admin_clean_orphans'))
     pg.click('[data-as="tg"]'); pg.wait_for_selector('#tg-form')
+    pg.click('#adm-body [data-invite="ulya"]'); pg.wait_for_selector('#inv-link')
+    check('админка: ссылка для Ули', sent('vx_invite_create', '"p_name":"ulya"') and 'отправь эту ссылку уле' in pg.inner_text('#modal-card').lower())
+    pg.keyboard.press('Escape')
+    u = pg.locator('[data-a="unlink"][data-arg="ulya"]'); u.click(); u.click(); pg.wait_for_timeout(300)
+    check('админка: отключить Telegram Ули', sent('vx_tg_unlink', '"p_name":"ulya"'))
     pg.click('[data-flag="all"]'); pg.wait_for_timeout(200)
     check('главный выключатель Telegram', sent('vx_admin_set', 'tg_all', '"p_on":false'))
     pg.click('[data-mute="ulya"]'); pg.wait_for_timeout(200)

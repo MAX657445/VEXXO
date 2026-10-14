@@ -975,7 +975,7 @@ details.up summary { padding: 12px var(--pad); cursor: pointer; color: var(--acc
     if (soon.length) h += soon.slice(0, 5).map(function (x) { return x.html; }).join('');
     else h += empty('cal', 'Ничего не запланировано.', '<button type="button" class="btn small primary" data-new="event">Предложить событие</button>');
     h += '</section><section class="card"><header><h2>Последние изменения</h2></header>';
-    var rec = (state.recent || []).filter(function (r) { return r.who && LOG_ACTIONS[r.action]; }).slice(0, 6);
+    var rec = (state.recent || []).filter(function (r) { return r.who && LOG_ACTIONS[r.action] && r.action.indexOf('tg_') !== 0; }).slice(0, 6);
     if (rec.length) h += rec.map(function (r) {
       return '<div class="feed">' + av(r.who, 's') + '<div><div>' + esc(LOG_ACTIONS[r.action]) + '</div>' + (r.detail ? '<div class="d">' + esc(r.detail) + '</div>' : '') + '</div><time>' + esc(ago(r.at)) + '</time></div>';
     }).join('');
@@ -1508,9 +1508,11 @@ details.up summary { padding: 12px var(--pad); cursor: pointer; color: var(--acc
       '<label>Повтори новый код<input id="cc-rep" type="password" inputmode="numeric" autocomplete="off" pattern="[0-9]{6,12}" required></label>' +
       '<button class="btn primary" type="submit">Сменить код</button><p class="form-msg wide" id="cc-msg" role="status"></p></form></section>' +
       '<section class="panel"><h2 class="panel-h">Устройства</h2><div class="panel-b"><p>Выйти на всех устройствах, включая это. Потребуется ввести код заново.</p><button type="button" class="btn" id="logout-all">Выйти на всех устройствах</button></div></section>' +
-      '<section class="panel"><h2 class="panel-h">Telegram</h2><label class="opt"><span>Присылать мне сообщения в Telegram<br><span class="when">Напоминания, сводка и новые записи от другого человека.</span></span><input type="checkbox" id="tg-self"' + ((state.raw && state.raw.tg_muted) ? '' : ' checked') + '></label></section>' +
+      '<section class="panel"><h2 class="panel-h">Telegram</h2><div class="panel-b"><p id="tg-state">Проверяю подключение…</p><div class="acts-row" id="tg-acts"></div></div>' +
+      '<label class="opt" id="tg-opt" hidden><span>Присылать мне сообщения в Telegram<br><span class="when">Напоминания, сводка и новые записи от другого человека.</span></span><input type="checkbox" id="tg-self"' + ((state.raw && state.raw.tg_muted) ? '' : ' checked') + '></label></section>' +
       '<section class="panel"><h2 class="panel-h">Мои данные</h2><div class="panel-b"><p>Скачать копию своих записей, расписания и событий одним файлом (JSON).</p><button type="button" class="btn" id="export">Скачать мои данные</button></div></section>';
     $('view').innerHTML = h;
+    tgPaint();
     $('pf-start').addEventListener('change', function () { prefs.start = this.value; savePrefs(); toast('Сохранено'); });
     $('code-form').addEventListener('submit', async function (e) {
       e.preventDefault();
@@ -1546,6 +1548,60 @@ details.up summary { padding: 12px var(--pad); cursor: pointer; color: var(--acc
         files: me === 'maxim' ? (r.files || []) : []
       });
     });
+  }
+  /* ----- Telegram по ссылке ----- */
+  var BOT_USER = 'maxim_claude_1488_bot';
+  async function tgPaint() {
+    var el = $('tg-state'); if (!el) return;
+    try {
+      var st = await rpc('vx_invite_status', { p_code: CODE });
+      if (!$('tg-state') || !st) return;
+      var on = !!st.linked[state.me];
+      el.textContent = on ? 'Telegram подключён: сообщения приходят в бота.' : 'Telegram не подключён. Нажми кнопку, откроется бот, в нём нажми «Запустить».';
+      $('tg-acts').innerHTML = on ? '<button type="button" class="btn small" data-invite="me">Подключить заново</button><button type="button" class="btn small danger" data-tg-unlink="me">Отключить</button>' : '<button type="button" class="btn primary" data-invite="me">Подключить Telegram</button>';
+      $('tg-opt').hidden = !on;
+    } catch (e) { if ($('tg-state')) $('tg-state').textContent = 'Не удалось проверить подключение.'; }
+  }
+  async function tgUnlink(name) {
+    var ok = await act(function () { return rpc('vx_tg_unlink', { p_code: CODE, p_name: name }); }, 'Telegram отключён', true);
+    if (ok) { if (view === 'me') vMe(); else if (view === 'admin') loadAdmin(); }
+  }
+  async function mInvite(name) {
+    var self = name === state.me, who = name === 'ulya' ? 'Уле' : 'Максиму';
+    openModal('Подключить Telegram', '<div id="inv-body"><p class="when">Готовлю ссылку…</p></div>');
+    var tok;
+    try { tok = await rpc('vx_invite_create', { p_code: CODE, p_name: name }); } catch (e) { closeModal(); showErr(e); return; }
+    if (!tok) { closeModal(); toast('Не получилось создать ссылку', true); return; }
+    var link = 'https://t.me/' + BOT_USER + '?start=' + tok, box = $('inv-body'); if (!box) return;
+    box.innerHTML = (self ? '<p>Нажми «Открыть бота», в Telegram нажми «Запустить» (Start). Больше ничего не нужно.</p>' :
+      '<p>Отправь эту ссылку ' + who + '. Достаточно нажать на неё и в Telegram нажать «Запустить» (Start): сообщения подключатся сами. Ссылка одноразовая и действует 48 часов.</p>') +
+      '<label class="fld" style="margin:12px 0">Ссылка<input id="inv-link" readonly value="' + esc(link) + '"></label>' +
+      '<div class="acts-row"><a class="btn primary" id="inv-open" href="' + esc(link) + '" target="_blank" rel="noopener">Открыть бота</a><button type="button" class="btn" id="inv-copy">Скопировать</button>' +
+      (navigator.share ? '<button type="button" class="btn" id="inv-share">Поделиться</button>' : '') + '</div><p class="form-msg" id="inv-st" role="status" style="margin-top:12px">Жду, пока подключится…</p>';
+    $('inv-copy').addEventListener('click', async function () {
+      try { await navigator.clipboard.writeText(link); }
+      catch (e) { var i = $('inv-link'); i.select(); try { document.execCommand('copy'); } catch (e2) {} }
+      toast('Ссылка скопирована');
+    });
+    if ($('inv-share')) $('inv-share').addEventListener('click', function () { navigator.share({ title: 'VEXXO', text: 'Подключи Telegram к сайту VEXXO', url: link }).catch(function () {}); });
+    for (var i = 0; i < 100 && $('inv-st'); i++) {
+      await sleep(3000);
+      if (!$('inv-st')) return;
+      try {
+        await rpc('vx_tg_poll_now', { p_code: CODE });
+        var st = await rpc('vx_invite_status', { p_code: CODE });
+        if (!$('inv-st') || !st) continue;
+        if (!st.pending[name]) {
+          if (st.linked[name]) {
+            $('inv-st').textContent = 'Подключено ✓'; toast('Telegram подключён');
+            if (view === 'me') tgPaint(); else if (view === 'admin') loadAdmin();
+            setTimeout(function () { if ($('inv-st')) closeModal(); }, 1300);
+          } else $('inv-st').textContent = 'Ссылка устарела. Закрой окно и создай новую.';
+          return;
+        }
+        if (st.error) $('inv-st').textContent = 'Telegram пока не отвечает (код ' + st.error + '). Подожди или попробуй ещё раз.';
+      } catch (e) {}
+    }
   }
   function downloadJson(name, obj) {
     var a = document.createElement('a');
@@ -1583,7 +1639,7 @@ details.up summary { padding: 12px var(--pad); cursor: pointer; color: var(--acc
     plan_add: 'Добавлен план', plan_del: 'Удалён план', task_add: 'Добавлена задача', task_del: 'Удалена задача',
     item_done: 'Отметка выполнения', item_edit: 'Изменена запись', item_status: 'Новый статус задачи', item_owner: 'Задача передана', comment_add: 'Комментарий к задаче', file_add: 'Загружен чертёж', file_del: 'Удалён чертёж',
     sched_add: 'Добавлена пара', sched_del: 'Удалена пара', admin_clean: 'Чистка хранилища', admin_tg: 'Сообщение из админки',
-    admin_setting: 'Настройка уведомлений', admin_run: 'Ручной запуск', admin_purge: 'Чистка данных', tg_self: 'Свои уведомления в Telegram'
+    admin_setting: 'Настройка уведомлений', tg_invite: 'Ссылка для подключения Telegram', tg_link: 'Telegram подключён', tg_unlink: 'Telegram отключён', admin_run: 'Ручной запуск', admin_purge: 'Чистка данных', tg_self: 'Свои уведомления в Telegram'
   };
   var TG_FLAGS = [
     ['items', 'Новая задача или план от другого человека'], ['events', 'Новый общий план на согласование'], ['votes', 'Ответ на событие (согласен или отказ)'],
@@ -1777,6 +1833,11 @@ details.up summary { padding: 12px var(--pad); cursor: pointer; color: var(--acc
       kvs([['Бот', tg.token ? 'подключён' : 'нет токена'], ['Чат Максима', chats.maxim ? 'есть' : 'нет'], ['Чат Ули', chats.ulya ? 'есть' : 'нет'],
            ['Отправок за последние часы', (tg.ok || 0) + ' ок, ' + (tg.fail || 0) + ' с ошибкой']]) +
       '<div class="panel-b"><button type="button" class="btn primary" data-a="tg-test">Проверить связь (сообщение мне)</button></div></section>';
+    h += '<section class="panel"><h2 class="panel-h">Подключение по ссылке</h2><div class="panel-b"><p>Создай ссылку и отправь человеку. Он нажимает её, в Telegram жмёт «Запустить», и сообщения подключаются сами. Ссылка одноразовая, действует 48 часов.</p></div>' +
+      ['ulya', 'maxim'].map(function (w) {
+        return '<div class="opt" style="cursor:default"><span><strong>' + NAMES[w] + '</strong><br><span class="when">' + (chats[w] ? 'Telegram подключён' : 'не подключён') + '</span></span><span class="acts-row"><button type="button" class="btn small primary" data-invite="' + w + '">' + (chats[w] ? 'Новая ссылка' : 'Создать ссылку') + '</button>' +
+          (chats[w] ? '<button type="button" class="btn small danger" data-a="unlink" data-arg="' + w + '" data-confirm="1">Отключить</button>' : '') + '</span></div>';
+      }).join('') + '</section>';
     h += '<section class="panel"><h2 class="panel-h">Главный выключатель</h2>' +
       '<label class="opt"><span><strong>Присылать сообщения в Telegram</strong><br><span class="when">Выключишь, и автоматические сообщения не придут никому. Проверка связи и «Написать от сайта» всё равно уходят.</span></span><input type="checkbox" data-flag="all"' + (fl.all === false ? '' : ' checked') + '></label>' +
       '<label class="opt"><span>Сообщения для Максима</span><input type="checkbox" data-mute="maxim"' + (fl.mute_maxim ? '' : ' checked') + '></label>' +
@@ -1824,6 +1885,7 @@ details.up summary { padding: 12px var(--pad); cursor: pointer; color: var(--acc
     b.disabled = true;
     try {
       if (a === 'lock' || a === 'unlock') { await arpc('vx_admin_lock', { p_on: a === 'lock' }); await loadAdmin(); admSay(a === 'lock' ? 'Сайт закрыт для Ули.' : 'Сайт открыт.'); }
+      else if (a === 'unlink') { await arpc('vx_tg_unlink', { p_name: arg }); await loadAdmin(); admSay('Telegram отключён: ' + NAMES[arg] + '.'); }
       else if (a === 'kick') { r = await arpc('vx_admin_kick', {}); await loadAdmin(); admSay('Закрыто устройств Ули: ' + (r || 0) + '.'); }
       else if (a === 'purge') {
         r = await arpc('vx_admin_purge', { p_what: arg }); await loadData(); render();
@@ -1986,6 +2048,8 @@ details.up summary { padding: 12px var(--pad); cursor: pointer; color: var(--acc
     var t = e.target, el;
     if (!t.closest('.search')) $('qres').hidden = true;
     if (t.closest('[data-tst]')) return;
+    if ((el = t.closest('[data-invite]'))) { var iv = el.getAttribute('data-invite'); mInvite(iv === 'me' ? state.me : iv); return; }
+    if ((el = t.closest('[data-tg-unlink]'))) { tgUnlink(state.me); return; }
     if (t.closest('[data-close-modal]')) { closeModal(); return; }
     if (t.closest('[data-close-sheet]')) { closeSheet(); return; }
     if (t.closest('[data-logout]')) { logout(); return; }

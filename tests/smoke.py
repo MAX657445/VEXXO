@@ -22,7 +22,7 @@ data = {
 OVERVIEW = {"locked": False, "counts": {"events": 1, "events_upcoming": 1, "tasks_open": 1, "tasks_done": 2, "plans_open": 1, "plans_done": 0, "files": 3, "sched": 1, "log": 12},
   "storage": {"bytes": 3145728, "objects": 4}, "users": {"ulya": {"sessions": 1, "last_seen": "2026-10-14T17:00:00+00:00", "last_login": "2026-10-13T10:00:00+00:00"}, "maxim": {"sessions": 2, "last_seen": "2026-10-14T17:50:00+00:00", "last_login": "2026-10-14T09:00:00+00:00"}},
   "failed": {"count_24h": 3, "last": "2026-10-14T12:00:00+00:00"},
-  "tg": {"token": True, "chats": {"ulya": True, "maxim": True}, "ok": 5, "fail": 0, "flags": {"items": True, "events": True, "votes": True, "edits": True, "remind": True, "digest": False}},
+  "tg": {"token": True, "chats": {"ulya": True, "maxim": True}, "ok": 5, "fail": 0, "flags": {"all": True, "mute_ulya": False, "mute_maxim": False, "items": True, "events": True, "votes": True, "edits": True, "remind": True, "digest": False}},
   "cron": [{"name": "vexxo-remind", "schedule": "*/5 * * * *", "active": True, "last_at": "2026-10-14T17:55:00+00:00", "last_status": "succeeded", "last_msg": ""}]}
 LOGINS = {"locked": False, "sessions": [{"name": "ulya", "device": "iPhone Safari", "created": "2026-10-13T10:00:00+00:00", "last_seen": "2026-10-14T17:00:00+00:00"}],
   "logins": [{"at": "2026-10-14T09:00:00+00:00", "name": "maxim", "kind": "login", "device": "Windows Chrome"}], "failed": {"count_24h": 3, "count_5m": 0, "last": "2026-10-14T12:00:00+00:00"}}
@@ -34,7 +34,7 @@ LOG = [{"id": 2, "at": "2026-10-14T17:00:00+00:00", "who": "ulya", "action": "ta
 MOCK = {'vx_session_start': json.dumps(TOKEN), 'vx_load': json.dumps(data), 'vx_change_code': '"ok"', 'vx_file_prepare': '"44444444-4444-4444-4444-444444444444/new.pdf"',
   'vx_admin_overview': json.dumps(OVERVIEW), 'vx_admin_logins': json.dumps(LOGINS), 'vx_admin_storage': json.dumps(STORAGE), 'vx_admin_log': json.dumps(LOG),
   'vx_admin_lock': 'true', 'vx_admin_kick': '1', 'vx_admin_reset_code': '"ok"', 'vx_admin_purge': '1', 'vx_admin_clean_orphans': '1', 'vx_admin_backup': json.dumps({"events": [], "items": []}),
-  'vx_admin_tg': '17', 'vx_admin_tg_status': json.dumps({"state": "ok", "status": 200}), 'vx_admin_set': json.dumps({}), 'vx_admin_run': 'true'}
+  'vx_admin_tg': '17', 'vx_admin_tg_status': json.dumps({"state": "ok", "status": 200}), 'vx_admin_set': json.dumps({}), 'vx_admin_run': 'true', 'vx_me_tg': 'true'}
 calls = []
 fails = []
 def check(name, cond):
@@ -101,6 +101,8 @@ with sync_playwright() as p:
     pg.fill('#cc-rep', '123456'); pg.click('#code-form button[type=submit]'); pg.wait_for_timeout(300)
     check('смена кода отправляется с токеном', any(c[0] == 'vx_change_code' and TOKEN in c[1] and '"p_new":"123456"' in c[1] for c in calls))
     check('сообщение об успехе', 'Код изменён' in pg.inner_text('#cc-msg'))
+    pg.click('#tg-self'); pg.wait_for_timeout(300)
+    check('личный выключатель Telegram в кабинете', any(c[0] == 'vx_me_tg' and '"p_on":false' in c[1] and TOKEN in c[1] for c in calls))
     pg.screenshot(path=f'{SHOTS}/me.png', full_page=True)
     # админка (Максим)
     check('вкладка «Админ» видна Максиму', pg.locator('[data-v="admin"]').is_visible())
@@ -138,6 +140,10 @@ with sync_playwright() as p:
     check('чистка лишних файлов', any(x[0] == 'vx_admin_clean_orphans' for x in calls))
     pg.screenshot(path=f'{SHOTS}/admin-files.png', full_page=True)
     pg.click('[data-as="tg"]'); pg.wait_for_selector('#tg-form')
+    pg.click('[data-flag="all"]'); pg.wait_for_timeout(200)
+    check('главный выключатель Telegram', any(c[0] == 'vx_admin_set' and 'tg_all' in c[1] and '"p_on":false' in c[1] for c in calls))
+    pg.click('[data-mute="ulya"]'); pg.wait_for_timeout(200)
+    check('отключить сообщения Уле', any(c[0] == 'vx_admin_set' and 'tg_mute_ulya' in c[1] and '"p_on":true' in c[1] for c in calls))
     pg.click('[data-flag="events"]'); pg.wait_for_timeout(200)
     check('переключатель уведомлений', any(c[0] == 'vx_admin_set' and 'tg_events' in c[1] and '"p_on":false' in c[1] for c in calls))
     pg.click('[data-a="tg-test"]'); pg.wait_for_timeout(2500)

@@ -39,7 +39,19 @@ create or replace function vx_locked() returns boolean
 language sql stable security definer set search_path = public as $$
   select coalesce((select value from vx_settings where key = 'locked'), '0') = '1'
 $$;
-revoke all on function vx_flag(text), vx_locked() from public, anon, authenticated;
+-- Человек отключил свои сообщения в Telegram (сам в кабинете или Максим в админке).
+create or replace function vx_muted(p_name text) returns boolean
+language sql stable security definer set search_path = public as $$
+  select coalesce((select value from vx_settings where key = 'tg_mute_' || p_name), '0') = '1'
+$$;
+-- Все переключатели Telegram одним объектом: all, по типам, mute_ulya, mute_maxim.
+create or replace function vx_tg_flags() returns jsonb
+language sql stable security definer set search_path = public as $$
+  select jsonb_build_object('all', vx_flag('tg_all'), 'items', vx_flag('tg_items'), 'events', vx_flag('tg_events'), 'votes', vx_flag('tg_votes'),
+                            'edits', vx_flag('tg_edits'), 'remind', vx_flag('tg_remind'), 'digest', vx_flag('tg_digest'),
+                            'mute_ulya', vx_muted('ulya'), 'mute_maxim', vx_muted('maxim'))
+$$;
+revoke all on function vx_flag(text), vx_locked(), vx_muted(text), vx_tg_flags() from public, anon, authenticated;
 
 -- Кто это. Дополнено: запоминает имя на время запроса (для журнала действий) и не пускает Улю, пока сайт закрыт.
 create or replace function vx_who(p_code text) returns text
@@ -130,7 +142,8 @@ create or replace function vx_tg(p_to text, p_text text, p_kind text default 'mi
 language plpgsql security definer set search_path = public, extensions as $$
 declare tok text; cid bigint; rid bigint;
 begin
-  if p_kind <> 'misc' and not vx_flag('tg_' || p_kind) then return null; end if;
+  -- Автоматические уведомления: главный выключатель, тип и личное отключение. Явные действия из админки (misc) идут всегда.
+  if p_kind <> 'misc' and (not vx_flag('tg_all') or not vx_flag('tg_' || p_kind) or vx_muted(p_to)) then return null; end if;
   select decrypted_secret into tok from vault.decrypted_secrets where name = 'tg_token' limit 1;
   select chat_id into cid from vx_notify where name = p_to;
   if tok is null or cid is null then return null; end if;
@@ -357,8 +370,21 @@ begin
     'items', coalesce((select jsonb_agg(jsonb_build_object('id', id, 'kind', kind, 'owner', owner, 'text', body, 'when', when_text, 'done', done, 'date', day, 'time', at_time, 'by', coalesce(by_user, owner)) order by day nulls last, at_time nulls last, created_at) from vx_items), '[]'::jsonb),
     'files', coalesce((select jsonb_agg(jsonb_build_object('id', id, 'project', project, 'title', title, 'date', day, 'note', note, 'path', path, 'filename', filename) order by day, created_at) from vx_files), '[]'::jsonb),
     'schedule', coalesce((select jsonb_agg(jsonb_build_object('id', id, 'owner', owner, 'date', day, 'pair', pair, 'subject', subject, 'room', room) order by day, pair) from vx_schedule), '[]'::jsonb),
-    'trash', case when w = 'maxim' then coalesce((select jsonb_agg(path) from vx_trash), '[]'::jsonb) else '[]'::jsonb end
+    'trash', case when w = 'maxim' then coalesce((select jsonb_agg(path) from vx_trash), '[]'::jsonb) else '[]'::jsonb end,
+    'tg_muted', vx_muted(w)
   );
+end $$;
+
+-- Свои сообщения в Telegram: включить или выключить (p_on = true значит получать).
+create or replace function vx_me_tg(p_code text, p_on boolean) returns boolean
+language plpgsql security definer set search_path = public as $$
+declare w text := vx_who(p_code);
+begin
+  if w is null then return null; end if;
+  insert into vx_settings(key, value) values ('tg_mute_' || w, case when p_on then '0' else '1' end)
+  on conflict (key) do update set value = excluded.value;
+  insert into vx_log(who, action, detail) values (w, 'tg_self', case when p_on then 'включил(а) свои сообщения в Telegram' else 'выключил(а) свои сообщения в Telegram' end);
+  return vx_muted(w);
 end $$;
 
 -- ---------- Админ-функции (только Максим; у Ули всегда {"error":"forbidden"}) ----------
@@ -409,8 +435,7 @@ begin
     'tg', jsonb_build_object('token', tokok,
       'chats', (select coalesce(jsonb_object_agg(name, true), '{}'::jsonb) from vx_notify),
       'ok', net_ok, 'fail', net_fail,
-      'flags', jsonb_build_object('items', vx_flag('tg_items'), 'events', vx_flag('tg_events'), 'votes', vx_flag('tg_votes'),
-                                  'edits', vx_flag('tg_edits'), 'remind', vx_flag('tg_remind'), 'digest', vx_flag('tg_digest'))),
+      'flags', vx_tg_flags()),
     'cron', cr
   );
 end $$;
@@ -545,12 +570,12 @@ create or replace function vx_admin_set(p_code text, p_key text, p_on boolean) r
 language plpgsql security definer set search_path = public as $$
 begin
   if not vx_is_admin(p_code) then return jsonb_build_object('error', 'forbidden'); end if;
-  if p_key not in ('tg_items', 'tg_events', 'tg_votes', 'tg_edits', 'tg_remind', 'tg_digest') then return jsonb_build_object('error', 'bad_key'); end if;
+  if p_key not in ('tg_all', 'tg_items', 'tg_events', 'tg_votes', 'tg_edits', 'tg_remind', 'tg_digest', 'tg_mute_ulya', 'tg_mute_maxim') then return jsonb_build_object('error', 'bad_key'); end if;
+  -- для tg_mute_* значение p_on = true значит «отключить этому человеку»; для остальных true значит «включено»
   insert into vx_settings(key, value) values (p_key, case when p_on then '1' else '0' end)
   on conflict (key) do update set value = excluded.value;
   insert into vx_log(who, action, detail) values ('maxim', 'admin_setting', p_key || ' = ' || case when p_on then 'вкл' else 'выкл' end);
-  return jsonb_build_object('items', vx_flag('tg_items'), 'events', vx_flag('tg_events'), 'votes', vx_flag('tg_votes'),
-                            'edits', vx_flag('tg_edits'), 'remind', vx_flag('tg_remind'), 'digest', vx_flag('tg_digest'));
+  return vx_tg_flags();
 end $$;
 
 -- Запустить задание вручную: 'digest' шлёт сводку только Максиму, 'remind' рассылает напоминания, которые подошли по времени.
@@ -616,13 +641,13 @@ end $$;
 -- ---------- Права ----------
 revoke all on function vx_session_start(text, text), vx_logout(text), vx_logout_all(text), vx_change_code(text, text, text), vx_load(text),
   vx_item_set(text, uuid, boolean), vx_item_del(text, uuid), vx_item_edit(text, uuid, text, date, text), vx_sched_del(text, uuid),
-  vx_event_edit(text, uuid, text, date, text),
+  vx_event_edit(text, uuid, text, date, text), vx_me_tg(text, boolean),
   vx_admin_overview(text), vx_admin_logins(text), vx_admin_lock(text, boolean), vx_admin_reset_code(text, text), vx_admin_kick(text),
   vx_admin_storage(text), vx_admin_clean_orphans(text), vx_admin_tg(text, text, text), vx_admin_tg_status(text, bigint),
   vx_admin_set(text, text, boolean), vx_admin_run(text, text), vx_admin_purge(text, text), vx_admin_log(text, int), vx_admin_backup(text) from public;
 grant execute on function vx_session_start(text, text), vx_logout(text), vx_logout_all(text), vx_change_code(text, text, text), vx_load(text),
   vx_item_set(text, uuid, boolean), vx_item_del(text, uuid), vx_item_edit(text, uuid, text, date, text), vx_sched_del(text, uuid),
-  vx_event_edit(text, uuid, text, date, text),
+  vx_event_edit(text, uuid, text, date, text), vx_me_tg(text, boolean),
   vx_admin_overview(text), vx_admin_logins(text), vx_admin_lock(text, boolean), vx_admin_reset_code(text, text), vx_admin_kick(text),
   vx_admin_storage(text), vx_admin_clean_orphans(text), vx_admin_tg(text, text, text), vx_admin_tg_status(text, bigint),
   vx_admin_set(text, text, boolean), vx_admin_run(text, text), vx_admin_purge(text, text), vx_admin_log(text, int), vx_admin_backup(text) to anon;

@@ -862,6 +862,7 @@ body:has(#lock:not([hidden])) { padding: 0; }
       '<label>Повтори новый код<input id="cc-rep" type="password" inputmode="numeric" autocomplete="off" pattern="[0-9]{6,12}" required></label>' +
       '<button class="btn primary" type="submit">Сменить код</button><p class="form-msg wide" id="cc-msg" role="status"></p></form></section>' +
       '<section class="panel"><h2 class="panel-h">Устройства</h2><div class="panel-b"><p>Выйти на всех устройствах, включая это. Потребуется ввести код заново.</p><button type="button" class="btn" id="logout-all">Выйти на всех устройствах</button></div></section>' +
+      '<section class="panel"><h2 class="panel-h">Telegram</h2><label class="opt"><span>Присылать мне сообщения в Telegram<br><span class="when">Напоминания, сводка и новые записи от другого человека.</span></span><input type="checkbox" id="tg-self"' + ((state.raw && state.raw.tg_muted) ? '' : ' checked') + '></label></section>' +
       '<section class="panel"><h2 class="panel-h">Мои данные</h2><div class="panel-b"><p>Скачать копию своих записей, расписания и событий одним файлом (JSON).</p><button type="button" class="btn" id="export">Скачать мои данные</button></div></section>';
     $('view').innerHTML = h;
     $('code-form').addEventListener('submit', async function (e) {
@@ -877,6 +878,11 @@ body:has(#lock:not([hidden])) { padding: 0; }
           r === 'taken' ? 'Этот код занят, выбери другой.' : 'Не получилось. Выйди и войди заново.';
         if (r === 'ok') { $('cc-cur').value = ''; $('cc-new').value = ''; $('cc-rep').value = ''; }
       } catch (err) { msg.textContent = /too_many_attempts/.test(err.message || '') ? 'Слишком много попыток. Подожди 5 минут.' : 'Нет связи с сервером.'; }
+    });
+    $('tg-self').addEventListener('change', async function () {
+      var on = this.checked, el = this;
+      try { var r = await rpc('vx_me_tg', { p_code: CODE, p_on: on }); if (state.raw) state.raw.tg_muted = !!r; }
+      catch (err) { el.checked = !on; showErr(err); }
     });
     $('logout-all').addEventListener('click', async function () {
       var t = CODE;
@@ -909,7 +915,7 @@ body:has(#lock:not([hidden])) { padding: 0; }
     plan_add: 'Добавлен план', plan_del: 'Удалён план', task_add: 'Добавлена задача', task_del: 'Удалена задача',
     item_done: 'Отметка выполнения', item_edit: 'Изменена запись', file_add: 'Загружен чертёж', file_del: 'Удалён чертёж',
     sched_add: 'Добавлена пара', sched_del: 'Удалена пара', admin_clean: 'Чистка хранилища', admin_tg: 'Сообщение из админки',
-    admin_setting: 'Настройка уведомлений', admin_run: 'Ручной запуск', admin_purge: 'Чистка данных'
+    admin_setting: 'Настройка уведомлений', admin_run: 'Ручной запуск', admin_purge: 'Чистка данных', tg_self: 'Свои уведомления в Telegram'
   };
   var TG_FLAGS = [
     ['items', 'Новая задача или план от другого человека'], ['events', 'Новый общий план на согласование'], ['votes', 'Ответ на событие (согласен или отказ)'],
@@ -1134,6 +1140,10 @@ body:has(#lock:not([hidden])) { padding: 0; }
       kvs([['Бот', tg.token ? 'подключён' : 'нет токена'], ['Чат Максима', chats.maxim ? 'есть' : 'нет'], ['Чат Ули', chats.ulya ? 'есть' : 'нет'],
            ['Отправок за последние часы', (tg.ok || 0) + ' ок, ' + (tg.fail || 0) + ' с ошибкой']]) +
       '<div class="panel-b"><button type="button" class="btn primary" data-a="tg-test">Проверить связь (сообщение мне)</button></div></section>';
+    h += '<section class="panel"><h2 class="panel-h">Главный выключатель</h2>' +
+      '<label class="opt"><span><strong>Присылать сообщения в Telegram</strong><br><span class="when">Выключишь, и автоматические сообщения не придут никому. Проверка связи и «Написать от сайта» всё равно уходят.</span></span><input type="checkbox" data-flag="all"' + (fl.all === false ? '' : ' checked') + '></label>' +
+      '<label class="opt"><span>Сообщения для Максима</span><input type="checkbox" data-mute="maxim"' + (fl.mute_maxim ? '' : ' checked') + '></label>' +
+      '<label class="opt"><span>Сообщения для Ули</span><input type="checkbox" data-mute="ulya"' + (fl.mute_ulya ? '' : ' checked') + '></label></section>';
     h += '<section class="panel"><h2 class="panel-h">Какие уведомления слать</h2>' +
       TG_FLAGS.map(function (t) { return '<label class="opt"><span>' + t[1] + '</span><input type="checkbox" data-flag="' + t[0] + '"' + (fl[t[0]] === false ? '' : ' checked') + '></label>'; }).join('') + '</section>';
     h += '<section class="panel"><h2 class="panel-h">Запустить сейчас</h2><div class="panel-b"><p>Сводка приходит только тебе. Напоминания уходят тем, у кого событие или план начинается в ближайший час.</p><div class="acts-row">' +
@@ -1211,7 +1221,13 @@ body:has(#lock:not([hidden])) { padding: 0; }
     if (b.isConnected) { b.disabled = false; b.removeAttribute('data-armed'); if (b.getAttribute('data-old')) b.textContent = b.getAttribute('data-old'); }
   }
   async function admChange(e) {
-    var chk = e.target.closest('[data-adm-chk]'), fl = e.target.closest('[data-flag]');
+    var chk = e.target.closest('[data-adm-chk]'), fl = e.target.closest('[data-flag]'), mu = e.target.closest('[data-mute]');
+    if (mu) {
+      var recv = mu.checked;
+      try { await arpc('vx_admin_set', { p_key: 'tg_mute_' + mu.getAttribute('data-mute'), p_on: !recv }); admSay(recv ? 'Сообщения включены.' : 'Сообщения отключены.'); }
+      catch (err) { mu.checked = !recv; admSay('Не удалось сохранить.'); }
+      return;
+    }
     if (chk) { var done = chk.checked; act(function () { return rpc('vx_item_set', { p_code: CODE, p_id: chk.getAttribute('data-adm-chk'), p_done: done }); }); return; }
     if (fl) {
       var on = fl.checked;

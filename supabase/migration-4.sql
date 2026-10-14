@@ -105,9 +105,10 @@ declare safe text; pth text;
 begin
   if vx_who(p_code) is distinct from 'maxim' then return null; end if;
   safe := regexp_replace(coalesce(p_filename, ''), '[^A-Za-z0-9._-]+', '_', 'g');
-  safe := regexp_replace(safe, '^[_.]+', '');
+  safe := regexp_replace(safe, '^_+', '');
+  if safe like '.%' then safe := 'file' || safe; end if;
   if char_length(safe) > 80 then safe := right(safe, 80); end if;
-  if safe = '' then safe := 'file'; end if;
+  if safe = '' or safe = '.' or safe = '..' then safe := 'file'; end if;
   pth := gen_random_uuid()::text || '/' || safe;
   insert into vx_uploads(path) values (pth);
   delete from vx_uploads where created_at < now() - interval '1 day';

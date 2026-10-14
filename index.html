@@ -191,6 +191,9 @@ button:focus-visible, a:focus-visible, textarea:focus-visible, input:focus-visib
 .latest { font-size: 11px; letter-spacing: .08em; text-transform: uppercase; color: var(--on-accent); background: var(--accent); border-radius: 4px; padding: 1px 6px; margin-left: 8px; font-family: var(--font-mono); vertical-align: middle; }
 .local-note { font-size: 13px; color: var(--muted); border-left: 2px solid var(--line); padding-left: 10px; margin: 0; }
 .foot { color: var(--muted); font-size: 13px; }
+.err { margin: 0; padding: 10px 14px; border: 1px solid var(--bad); border-radius: 6px; color: var(--bad); background: var(--surface); }
+.ver .t a { color: var(--ink); text-decoration-color: var(--accent); text-underline-offset: 3px; }
+.ver .t a:hover { color: var(--accent); }
 
 /* ---------- Чат с Claude ---------- */
 .chat-fab { position: fixed; z-index: 20; right: max(16px, env(safe-area-inset-right, 0px)); bottom: calc(16px + env(safe-area-inset-bottom, 0px)); font-weight: 700; font-size: 15px; background: var(--accent); color: var(--on-accent); border: none; border-radius: 6px; padding: 12px 18px; cursor: pointer; box-shadow: 0 6px 20px rgba(0, 0, 0, 0.25); }
@@ -218,7 +221,7 @@ button:focus-visible, a:focus-visible, textarea:focus-visible, input:focus-visib
 <div class="lock" id="lock">
   <div class="lock-card">
     <div class="logo">VEXXO</div>
-    <p>Введи код, чтобы войти</p>
+    <p>Вход по личному коду</p>
     <div class="dots" id="dots" aria-hidden="true"><i></i><i></i><i></i><i></i></div>
     <div class="keys" id="keys" role="group" aria-label="Цифровая клавиатура">
       <button type="button" data-k="1">1</button><button type="button" data-k="2">2</button><button type="button" data-k="3">3</button>
@@ -228,7 +231,7 @@ button:focus-visible, a:focus-visible, textarea:focus-visible, input:focus-visib
       <button type="button" data-k="0">0</button>
       <button type="button" data-k="back" aria-label="Стереть">⌫</button>
     </div>
-    <p class="hint" id="hint" aria-live="polite">Код пока временный</p>
+    <p class="hint" id="hint" aria-live="polite">Введи свой код</p>
   </div>
 </div>
 
@@ -246,7 +249,8 @@ button:focus-visible, a:focus-visible, textarea:focus-visible, input:focus-visib
     <button type="button" role="tab" data-v="maxim" aria-selected="false">Максим</button>
   </nav>
   <main class="view" id="view" aria-live="polite"></main>
-  <p class="draft">Набросок. Данные сохраняются только в этом браузере и пока не общие для двоих.</p>
+  <p class="err" id="err" role="alert" hidden></p>
+  <p class="draft">Набросок. Календарь, доски и чертежи общие для Ули и Максима.</p>
 </div>
 
 <button type="button" class="chat-fab" id="chat-fab" hidden aria-controls="chat-panel" aria-expanded="false">Спросить Claude</button>
@@ -261,9 +265,13 @@ button:focus-visible, a:focus-visible, textarea:focus-visible, input:focus-visib
 
 <script>
 (function () {
-  // Коды входа. Защита только от случайных гостей: коды видны в исходнике страницы.
-  var CODES = { '1111': 'maxim', '2222': 'ulya' };
-  var SKEY = 'vexxo:unlocked', DKEY = 'vexxo:data:v2';
+  // Подключение к базе Supabase. Ключ publishable публичный, его можно держать в коде сайта.
+  // Права ограничены: к таблицам напрямую доступа нет, всё идёт через функции, которые проверяют код входа.
+  var SB_URL = 'https://cnkergfsrmvvvbsubqnv.supabase.co';
+  var SB_KEY = 'sb_publishable_y_PN61X0Fnrupm3tuKU5sQ_uStCwgok';
+  var MAX_FILE = 25 * 1024 * 1024;
+
+  var SKEY = 'vexxo:code';
   var NAMES = { ulya: 'Уля', maxim: 'Максим' };
   var DAYN = ['Воскресенье', 'Понедельник', 'Вторник', 'Среда', 'Четверг', 'Пятница', 'Суббота'];
   var DAYS = ['вс', 'пн', 'вт', 'ср', 'чт', 'пт', 'сб'];
@@ -287,31 +295,67 @@ button:focus-visible, a:focus-visible, textarea:focus-visible, input:focus-visib
 
   function $(id) { return document.getElementById(id); }
   function esc(s) { return String(s).replace(/[&<>"]/g, function (c) { return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]; }); }
-  function uid() { return Math.random().toString(36).slice(2, 9); }
+  function uuid() {
+    if (window.crypto && crypto.randomUUID) return crypto.randomUUID();
+    var b = new Uint8Array(16); crypto.getRandomValues(b); b[6] = (b[6] & 15) | 64; b[8] = (b[8] & 63) | 128;
+    var h = Array.prototype.map.call(b, function (x) { return ('0' + x.toString(16)).slice(-2); }).join('');
+    return h.slice(0, 8) + '-' + h.slice(8, 12) + '-' + h.slice(12, 16) + '-' + h.slice(16, 20) + '-' + h.slice(20);
+  }
 
-  /* ----- данные (в браузере) ----- */
-  var state = {
-    me: 'maxim',
-    events: [
-      { id: 'e1', ex: true, title: 'Поход в кино', date: '2026-10-17', time: '19:00', by: 'maxim', votes: { maxim: 'yes', ulya: '' } },
-      { id: 'e2', ex: true, title: 'Вместе сделать чертёж по САПР', date: '2026-10-18', time: '15:00', by: 'ulya', votes: { ulya: 'yes', maxim: '' } }
-    ],
-    plans: { ulya: [], maxim: [] },
-    tasks: { ulya: [], maxim: [] },
-    drawings: { sapr: [], arch: [] }
-  };
-  try {
-    var raw = localStorage.getItem(DKEY);
-    if (raw) {
-      var s0 = JSON.parse(raw);
-      if (s0 && s0.events && s0.drawings) {
-        if (!s0.tasks) s0.tasks = s0.notes || { ulya: [], maxim: [] };
-        if (!s0.plans) s0.plans = { ulya: [], maxim: [] };
-        delete s0.notes; state = s0;
-      }
-    }
-  } catch (e) {}
-  function save() { try { localStorage.setItem(DKEY, JSON.stringify(state)); } catch (e) {} }
+  /* ----- связь с сервером ----- */
+  function rpc(fn, args) {
+    return fetch(SB_URL + '/rest/v1/rpc/' + fn, {
+      method: 'POST',
+      headers: { 'apikey': SB_KEY, 'Content-Type': 'application/json' },
+      body: JSON.stringify(args)
+    }).then(function (r) {
+      return r.text().then(function (t) {
+        if (!r.ok) { var e = new Error(t || ('http ' + r.status)); e.status = r.status; throw e; }
+        return t ? JSON.parse(t) : null;
+      });
+    });
+  }
+
+  var CODE = '';
+  var state = { me: '', events: [], plans: { ulya: [], maxim: [] }, tasks: { ulya: [], maxim: [] }, drawings: { sapr: [], arch: [] } };
+  var lastSig = '';
+
+  function fileUrl(path) { return SB_URL + '/storage/v1/object/public/drawings/' + path; }
+  function applyData(d) {
+    state.me = d.me;
+    state.events = (d.events || []).map(function (e) {
+      var v = e.votes || {};
+      return { id: e.id, title: e.title, date: e.date, time: String(e.time).slice(0, 5), by: e.by, votes: { ulya: v.ulya || '', maxim: v.maxim || '' } };
+    });
+    state.plans = { ulya: [], maxim: [] }; state.tasks = { ulya: [], maxim: [] };
+    (d.items || []).forEach(function (i) {
+      (i.kind === 'plan' ? state.plans : state.tasks)[i.owner].push({ id: i.id, text: i.text, when: i.when || '', done: !!i.done });
+    });
+    state.drawings = { sapr: [], arch: [] };
+    (d.files || []).forEach(function (f) {
+      if (state.drawings[f.project]) state.drawings[f.project].push({ id: f.id, title: f.title, date: f.date, note: f.note || '', filename: f.filename || '', url: fileUrl(f.path) });
+    });
+  }
+  async function loadData() {
+    var d = await rpc('vx_load', { p_code: CODE });
+    if (!d || d.error) { var e = new Error('forbidden'); e.forbidden = true; throw e; }
+    lastSig = JSON.stringify(d);
+    applyData(d);
+  }
+
+  var errEl = $('err');
+  function showErr(e) {
+    var m = 'Нет связи с сервером. Попробуй ещё раз.';
+    if (e && e.forbidden) m = 'Код больше не подходит. Выйди и войди заново.';
+    else if (e && e.message === 'size') m = 'Файл больше 25 МБ.';
+    else if (e && e.message === 'upload') m = 'Не удалось загрузить файл. Попробуй ещё раз.';
+    else if (e && /too_many_attempts/.test(e.message || '')) m = 'Слишком много неверных кодов. Подожди 5 минут.';
+    errEl.textContent = m; errEl.hidden = false;
+  }
+  async function act(fn) {
+    try { await fn(); await loadData(); errEl.hidden = true; } catch (e) { showErr(e); }
+    render();
+  }
 
   /* ----- время ----- */
   function moscowNow() {
@@ -327,25 +371,40 @@ button:focus-visible, a:focus-visible, textarea:focus-visible, input:focus-visib
   function pl(n, a, b, c) { var m10 = n % 10, m100 = n % 100; if (m10 === 1 && m100 !== 11) return a; if (m10 >= 2 && m10 <= 4 && (m100 < 12 || m100 > 14)) return b; return c; }
 
   /* ----- вход ----- */
-  var entered = '';
+  var entered = '', busyLogin = false;
   var lock = $('lock'), app = $('app'), dots = $('dots'), hint = $('hint'), fab = $('chat-fab');
+  var HINT0 = 'Введи свой код';
   function paintDots() { var d = dots.children; for (var i = 0; i < d.length; i++) d[i].className = i < entered.length ? 'on' : ''; }
-  function unlock(remember) {
+  function badCode(msg) {
+    hint.textContent = msg;
+    dots.classList.remove('bad'); void dots.offsetWidth; dots.classList.add('bad');
+    setTimeout(function () { entered = ''; paintDots(); busyLogin = false; }, 350);
+  }
+  async function tryLogin(c, silent) {
+    busyLogin = true;
+    var name;
+    try { name = await rpc('vx_login', { p_code: c }); }
+    catch (e) {
+      if (silent) { busyLogin = false; entered = ''; paintDots(); hint.textContent = HINT0; return; }
+      return badCode(/too_many_attempts/.test(e.message || '') ? 'Слишком много попыток. Подожди 5 минут.' : 'Нет связи с сервером. Попробуй ещё раз.');
+    }
+    if (!name) {
+      try { sessionStorage.removeItem(SKEY); } catch (e) {}
+      if (silent) { busyLogin = false; return; }
+      return badCode('Неверный код, попробуй ещё раз');
+    }
+    CODE = c; state.me = name;
+    try { await loadData(); } catch (e) { if (!silent) return badCode('Нет связи с сервером. Попробуй ещё раз.'); busyLogin = false; return; }
+    try { sessionStorage.setItem(SKEY, c); } catch (e) {}
+    entered = ''; paintDots(); busyLogin = false; hint.textContent = HINT0;
     lock.hidden = true; app.hidden = false; fab.hidden = false;
-    if (remember) { try { sessionStorage.setItem(SKEY, state.me); } catch (e) {} }
     paintMe(); go(fromHash() || 'cal');
   }
   function press(k) {
+    if (busyLogin) return;
     if (k === 'back') entered = entered.slice(0, -1); else if (entered.length < 4) entered += k;
     paintDots();
-    if (entered.length === 4) {
-      if (CODES[entered]) { state.me = CODES[entered]; entered = ''; unlock(true); }
-      else {
-        hint.textContent = 'Неверный код, попробуй ещё раз';
-        dots.classList.remove('bad'); void dots.offsetWidth; dots.classList.add('bad');
-        setTimeout(function () { entered = ''; paintDots(); }, 350);
-      }
-    }
+    if (entered.length === 4) tryLogin(entered, false);
   }
   $('keys').addEventListener('click', function (e) { var b = e.target.closest('button[data-k]'); if (b) press(b.getAttribute('data-k')); });
   document.addEventListener('keydown', function (e) {
@@ -354,12 +413,11 @@ button:focus-visible, a:focus-visible, textarea:focus-visible, input:focus-visib
   });
   $('exit').addEventListener('click', function () {
     try { sessionStorage.removeItem(SKEY); } catch (e) {}
+    CODE = ''; state.me = '';
     app.hidden = true; lock.hidden = false; fab.hidden = true; $('chat-panel').hidden = true;
-    entered = ''; paintDots(); hint.textContent = 'Код пока временный';
+    entered = ''; paintDots(); hint.textContent = HINT0;
   });
-
-  /* ----- кто вошёл ----- */
-  function paintMe() { $('me-name').textContent = NAMES[state.me]; }
+  function paintMe() { $('me-name').textContent = NAMES[state.me] || ''; }
 
   /* ----- навигация ----- */
   var view = 'cal', sub = { ulya: 'plans', maxim: 'plans' };
@@ -381,11 +439,11 @@ button:focus-visible, a:focus-visible, textarea:focus-visible, input:focus-visib
   }
   function renderCal() {
     var now = moscowNow();
-    var evs = state.events.slice().sort(function (a, b) { return (a.date + a.time).localeCompare(b.date + b.time); });
     var groups = {}, order = [];
-    evs.forEach(function (e) { if (!groups[e.date]) { groups[e.date] = []; order.push(e.date); } groups[e.date].push(e); });
+    state.events.forEach(function (e) { if (!groups[e.date]) { groups[e.date] = []; order.push(e.date); } groups[e.date].push(e); });
+    var yesL = state.me === 'ulya' ? 'Согласна' : 'Согласен';
     var h = '<div class="row"><h1>Общий календарь</h1><button type="button" class="btn" id="ask-idea">Спросить Claude про идеи</button></div>' +
-      '<p class="lead">Предложи время и занятие. Второй человек нажимает «Согласен» или «Отказаться».</p>' +
+      '<p class="lead">Предложи время и занятие. Второй человек нажимает «' + yesL + '» или «Отказаться». Календарь общий, изменения видны обоим.</p>' +
       '<form class="panel form" id="ev-form"><label class="wide">Что планируем<input id="ev-title" required maxlength="120" placeholder="Например: прогулка, кино, совместная работа"></label>' +
       '<label>Дата<input id="ev-date" type="date" required value="' + now.date + '"></label>' +
       '<label>Время<input id="ev-time" type="time" required value="18:00"></label>' +
@@ -394,12 +452,11 @@ button:focus-visible, a:focus-visible, textarea:focus-visible, input:focus-visib
     order.forEach(function (d) {
       h += '<section class="panel"><div class="day-head">' + DAYN[dow(d)] + ', ' + longDate(d) + (d === now.date ? ' · сегодня' : '') + '</div>';
       groups[d].forEach(function (e) {
-        var other = state.me === 'maxim' ? 'ulya' : 'maxim';
         var mine = e.votes[state.me];
-        h += '<div class="ev"><div><h3>' + esc(e.title) + (e.ex ? '<span class="example">пример</span>' : '') + '</h3>' +
+        h += '<div class="ev"><div><h3>' + esc(e.title) + '</h3>' +
           '<div class="meta"><span class="mono">' + esc(e.time) + '</span><span>предложил' + (e.by === 'ulya' ? 'а' : '') + ': ' + NAMES[e.by] + '</span></div>' +
           '<div class="votes" style="margin-top:8px">' + statusBadge(e, 'ulya') + statusBadge(e, 'maxim') + '</div></div>' +
-          '<div class="votes"><button type="button" class="btn small yes" data-vote="yes" data-id="' + e.id + '" aria-pressed="' + (mine === 'yes') + '">Согласен</button>' +
+          '<div class="votes"><button type="button" class="btn small yes" data-vote="yes" data-id="' + e.id + '" aria-pressed="' + (mine === 'yes') + '">' + yesL + '</button>' +
           '<button type="button" class="btn small no" data-vote="no" data-id="' + e.id + '" aria-pressed="' + (mine === 'no') + '">Отказаться</button>' +
           '<button type="button" class="x" data-del-ev="' + e.id + '" aria-label="Удалить событие">✕</button></div></div>';
       });
@@ -409,9 +466,8 @@ button:focus-visible, a:focus-visible, textarea:focus-visible, input:focus-visib
     $('ev-form').addEventListener('submit', function (ev) {
       ev.preventDefault();
       var title = $('ev-title').value.trim(); if (!title) return;
-      var votes = { ulya: '', maxim: '' }; votes[state.me] = 'yes';
-      state.events.push({ id: uid(), title: title, date: $('ev-date').value, time: $('ev-time').value, by: state.me, votes: votes });
-      save(); renderCal();
+      var date = $('ev-date').value, time = $('ev-time').value;
+      act(function () { return rpc('vx_event_add', { p_code: CODE, p_title: title, p_date: date, p_time: time }); });
     });
     $('ask-idea').addEventListener('click', function () {
       document.dispatchEvent(new CustomEvent('vexxo:chat', { detail: 'Предложи 5 идей, как нам вдвоём провести время в ближайшие выходные в Пскове.' }));
@@ -434,32 +490,37 @@ button:focus-visible, a:focus-visible, textarea:focus-visible, input:focus-visib
   }
 
   var BOARD = {
-    plans: { lead: 'Куда пойти и что сделать, с примерным временем.', ph: 'Например: погулять', when: 'Когда примерно: сб, около 18:00', empty: 'Пока нет планов. Добавь первый ниже.' },
-    tasks: { lead: 'Что нужно купить или сделать.', ph: 'Например: купить краску для принтера', when: '', empty: 'Пока нет задач. Добавь первую ниже.' }
+    plans: { lead: 'Куда пойти и что сделать, с примерным временем.', ph: 'Например: погулять', when: 'Когда примерно: сб, около 18:00', empty: 'Пока нет планов.' },
+    tasks: { lead: 'Что нужно купить или сделать.', ph: 'Например: купить краску для принтера', when: '', empty: 'Пока нет задач.' }
   };
   function boardHtml(kind, who) {
-    var c = BOARD[kind], list = state[kind][who];
-    var h = '<p class="lead">' + c.lead + '</p><section class="panel"><ul class="list">';
-    if (!list.length) h += '<li class="empty">' + c.empty + '</li>';
+    var c = BOARD[kind], list = state[kind][who], edit = who === state.me;
+    var h = '<p class="lead">' + c.lead + (edit ? '' : ' Здесь можно только смотреть.') + '</p><section class="panel"><ul class="list">';
+    if (!list.length) h += '<li class="empty">' + c.empty + (edit ? ' Добавь первый ниже.' : '') + '</li>';
     list.forEach(function (n) {
-      h += '<li class="item' + (n.done ? ' done' : '') + '"><input type="checkbox" data-chk="' + n.id + '"' + (n.done ? ' checked' : '') + ' aria-label="Выполнено"><span class="t">' + esc(n.text) +
-        (n.when ? '<br><span class="when">' + esc(n.when) + '</span>' : '') + '</span><button type="button" class="x" data-del="' + n.id + '" aria-label="Удалить">✕</button></li>';
+      h += '<li class="item' + (n.done ? ' done' : '') + '"><input type="checkbox" data-chk="' + n.id + '"' + (n.done ? ' checked' : '') + (edit ? '' : ' disabled') + ' aria-label="Выполнено"><span class="t">' + esc(n.text) +
+        (n.when ? '<br><span class="when">' + esc(n.when) + '</span>' : '') + '</span>' +
+        (edit ? '<button type="button" class="x" data-del="' + n.id + '" aria-label="Удалить">✕</button>' : '<span></span>') + '</li>';
     });
-    h += '</ul><form class="add" id="board-form"><input id="board-text" maxlength="200" placeholder="' + c.ph + '" aria-label="Название" required>' +
-      (c.when ? '<input id="board-when" maxlength="60" placeholder="' + c.when + '" aria-label="Когда примерно">' : '') +
-      '<button type="submit" class="btn primary">Добавить</button></form></section>';
-    return h;
+    h += '</ul>';
+    if (edit) {
+      h += '<form class="add" id="board-form"><input id="board-text" maxlength="200" placeholder="' + c.ph + '" aria-label="Название" required>' +
+        (c.when ? '<input id="board-when" maxlength="60" placeholder="' + c.when + '" aria-label="Когда примерно">' : '') +
+        '<button type="submit" class="btn primary">Добавить</button></form>';
+    }
+    return h + '</section>';
   }
   function bindBoard(kind, who) {
+    if (who !== state.me) return;
     $('board-form').addEventListener('submit', function (e) {
       e.preventDefault(); var t = $('board-text').value.trim(); if (!t) return;
       var w = $('board-when') ? $('board-when').value.trim() : '';
-      state[kind][who].push({ id: uid(), text: t, when: w, done: false }); save(); renderPerson(who);
+      act(function () { return rpc('vx_item_add', { p_code: CODE, p_kind: kind === 'plans' ? 'plan' : 'task', p_body: t, p_when: w }); });
     });
     $('view').querySelector('.list').addEventListener('click', function (e) {
       var d = e.target.closest('[data-del]'), c = e.target.closest('[data-chk]');
-      if (d) { state[kind][who] = state[kind][who].filter(function (n) { return n.id !== d.getAttribute('data-del'); }); save(); renderPerson(who); }
-      else if (c) { state[kind][who].forEach(function (n) { if (n.id === c.getAttribute('data-chk')) n.done = c.checked; }); save(); renderPerson(who); }
+      if (d) act(function () { return rpc('vx_item_del', { p_code: CODE, p_id: d.getAttribute('data-del') }); });
+      else if (c) { var done = c.checked; act(function () { return rpc('vx_item_set', { p_code: CODE, p_id: c.getAttribute('data-chk'), p_done: done }); }); }
     });
   }
 
@@ -501,29 +562,53 @@ button:focus-visible, a:focus-visible, textarea:focus-visible, input:focus-visib
 
   var PROJECTS = [['sapr', 'САПР'], ['arch', 'Архитектура']];
   function drawHtml() {
-    var h = '<p class="lead">Готовые и последние правки по двум проектам. Пока это список записей (название, дата, заметка). Сами файлы здесь хранить нельзя, их нужно добавить отдельно.</p><div class="proj">';
+    var edit = state.me === 'maxim';
+    var h = '<p class="lead">Готовые и последние правки по двум проектам. ' + (edit ? 'Загрузи файл (PDF, картинка, DWG, DXF), до 25 МБ.' : 'Здесь можно смотреть и скачивать файлы.') + '</p><div class="proj">';
     PROJECTS.forEach(function (pr) {
       var list = state.drawings[pr[0]];
-      h += '<section class="panel"><div class="proj-head"><h3>' + pr[1] + '</h3><span class="mono" style="color:var(--muted);font-size:13px">записей: ' + list.length + '</span></div>';
-      if (!list.length) h += '<div class="empty">Пока нет записей.</div>';
+      h += '<section class="panel"><div class="proj-head"><h3>' + pr[1] + '</h3><span class="mono" style="color:var(--muted);font-size:13px">файлов: ' + list.length + '</span></div>';
+      if (!list.length) h += '<div class="empty">Пока нет файлов.</div>';
       list.slice().reverse().forEach(function (v, i) {
-        h += '<div class="ver"><span class="t">' + esc(v.title) + (i === 0 ? '<span class="latest">последняя</span>' : '') + '</span><span class="when">' + esc(v.date) + '</span><button type="button" class="x" data-del-dr="' + pr[0] + ':' + v.id + '" aria-label="Удалить">✕</button>' +
-          (v.note ? '<span class="note">' + esc(v.note) + '</span>' : '') + '</div>';
+        h += '<div class="ver"><span class="t"><a href="' + esc(v.url) + '" target="_blank" rel="noopener">' + esc(v.title) + '</a>' + (i === 0 ? '<span class="latest">последняя</span>' : '') + '</span><span class="when">' + esc(v.date) + '</span>' +
+          (edit ? '<button type="button" class="x" data-del-dr="' + v.id + '" aria-label="Удалить">✕</button>' : '<span></span>') +
+          '<span class="note">' + (v.filename ? esc(v.filename) : '') + (v.note ? (v.filename ? ' · ' : '') + esc(v.note) : '') + '</span></div>';
       });
-      h += '<form class="form" data-dr-form="' + pr[0] + '"><label class="wide">Название версии<input name="title" required maxlength="100" placeholder="Например: План 1 этажа, правка 3"></label>' +
-        '<label>Дата<input name="date" type="date" required value="' + moscowNow().date + '"></label>' +
-        '<label class="wide">Что изменено<input name="note" maxlength="200" placeholder="Коротко, по желанию"></label>' +
-        '<button type="submit" class="btn primary">Добавить</button></form></section>';
+      if (edit) {
+        h += '<form class="form" data-dr-form="' + pr[0] + '"><label class="wide">Название версии<input name="title" required maxlength="100" placeholder="Например: План 1 этажа, правка 3"></label>' +
+          '<label>Дата<input name="date" type="date" required value="' + moscowNow().date + '"></label>' +
+          '<label>Файл<input name="file" type="file" required></label>' +
+          '<label class="wide">Что изменено<input name="note" maxlength="200" placeholder="Коротко, по желанию"></label>' +
+          '<button type="submit" class="btn primary">Загрузить</button></form>';
+      }
+      h += '</section>';
     });
     return h + '</div>';
   }
+  async function uploadFile(file) {
+    if (file.size > MAX_FILE) throw new Error('size');
+    var safe = file.name.replace(/[^A-Za-z0-9._-]+/g, '_').replace(/^_+/, '');
+    if (!safe || /^\.+$/.test(safe)) safe = 'file';
+    if (safe.length > 80) safe = safe.slice(-80);
+    var path = uuid() + '/' + safe;
+    var r = await fetch(SB_URL + '/storage/v1/object/drawings/' + path, {
+      method: 'POST',
+      headers: { 'apikey': SB_KEY, 'Content-Type': file.type || 'application/octet-stream', 'x-upsert': 'false' },
+      body: file
+    });
+    if (!r.ok) throw new Error('upload');
+    return path;
+  }
   function bindDraw() {
-    var root = $('view');
-    root.querySelectorAll('[data-dr-form]').forEach(function (f) {
+    if (state.me !== 'maxim') return;
+    $('view').querySelectorAll('[data-dr-form]').forEach(function (f) {
       f.addEventListener('submit', function (e) {
-        e.preventDefault(); var k = f.getAttribute('data-dr-form'), fd = new FormData(f);
-        state.drawings[k].push({ id: uid(), title: String(fd.get('title')).trim(), date: String(fd.get('date')), note: String(fd.get('note') || '').trim() });
-        save(); renderPerson('maxim');
+        e.preventDefault();
+        var k = f.getAttribute('data-dr-form'), fd = new FormData(f), file = fd.get('file');
+        var btn = f.querySelector('button[type=submit]'); btn.disabled = true; btn.textContent = 'Загрузка…';
+        act(async function () {
+          var path = await uploadFile(file);
+          await rpc('vx_file_add', { p_code: CODE, p_project: k, p_title: String(fd.get('title')).trim(), p_date: String(fd.get('date')), p_note: String(fd.get('note') || '').trim(), p_path: path, p_filename: file.name });
+        });
       });
     });
   }
@@ -534,23 +619,35 @@ button:focus-visible, a:focus-visible, textarea:focus-visible, input:focus-visib
   $('view').addEventListener('click', function (e) {
     var v = e.target.closest('[data-vote]'), d = e.target.closest('[data-del-ev]'), dr = e.target.closest('[data-del-dr]');
     if (dr) {
-      var p = dr.getAttribute('data-del-dr').split(':');
-      state.drawings[p[0]] = state.drawings[p[0]].filter(function (x) { return x.id !== p[1]; });
-      save(); renderPerson('maxim');
+      act(function () { return rpc('vx_file_del', { p_code: CODE, p_id: dr.getAttribute('data-del-dr') }); });
     } else if (v) {
       var id = v.getAttribute('data-id'), val = v.getAttribute('data-vote');
-      state.events.forEach(function (ev) { if (ev.id === id) ev.votes[state.me] = ev.votes[state.me] === val ? '' : val; });
-      save(); renderCal();
+      var cur = ''; state.events.forEach(function (ev) { if (ev.id === id) cur = ev.votes[state.me]; });
+      act(function () { return rpc('vx_event_vote', { p_code: CODE, p_id: id, p_vote: cur === val ? '' : val }); });
     } else if (d) {
-      state.events = state.events.filter(function (ev) { return ev.id !== d.getAttribute('data-del-ev'); });
-      save(); renderCal();
+      act(function () { return rpc('vx_event_del', { p_code: CODE, p_id: d.getAttribute('data-del-ev') }); });
     }
   });
-  setInterval(function () { if (!app.hidden && view !== 'cal' && sub[view] === 'sched') renderPerson(view); }, 60000);
 
-  var who0 = '';
-  try { who0 = sessionStorage.getItem(SKEY) || ''; } catch (e) {}
-  if (NAMES[who0]) { state.me = who0; unlock(false); }
+  /* ----- обновление раз в 15 секунд ----- */
+  setInterval(async function () {
+    if (app.hidden || document.visibilityState !== 'visible' || !CODE) return;
+    var ae = document.activeElement;
+    if (ae && /INPUT|SELECT|TEXTAREA/.test(ae.tagName) && $('view').contains(ae)) return;
+    try {
+      var d = await rpc('vx_load', { p_code: CODE });
+      if (!d || d.error) return;
+      var sig = JSON.stringify(d);
+      if (sig !== lastSig) { lastSig = sig; applyData(d); render(); }
+      errEl.hidden = true;
+    } catch (e) {}
+    if (view !== 'cal' && sub[view] === 'sched') render();
+  }, 15000);
+
+  /* ----- автовход после обновления страницы ----- */
+  var saved = '';
+  try { saved = sessionStorage.getItem(SKEY) || ''; } catch (e) {}
+  if (/^[0-9]{4}$/.test(saved)) { hint.textContent = 'Входим…'; tryLogin(saved, true); }
 })();
 </script>
 

@@ -563,7 +563,7 @@ button:focus-visible, a:focus-visible, textarea:focus-visible, input:focus-visib
   var PROJECTS = [['sapr', 'САПР'], ['arch', 'Архитектура']];
   function drawHtml() {
     var edit = state.me === 'maxim';
-    var h = '<p class="lead">Готовые и последние правки по двум проектам. ' + (edit ? 'Загрузи файл (PDF, картинка, DWG, DXF), до 25 МБ.' : 'Здесь можно смотреть и скачивать файлы.') + '</p><div class="proj">';
+    var h = '<p class="lead">Готовые и последние правки по двум проектам. ' + (edit ? 'Загрузи любой файл (PDF, картинка, DWG, DXF, архив), в том числе чужой чертёж, над которым работаешь. До 25 МБ. Потом скачай его кнопкой «Скачать».' : 'Здесь можно смотреть и скачивать файлы.') + '</p><div class="proj">';
     PROJECTS.forEach(function (pr) {
       var list = state.drawings[pr[0]];
       h += '<section class="panel"><div class="proj-head"><h3>' + pr[1] + '</h3><span class="mono" style="color:var(--muted);font-size:13px">файлов: ' + list.length + '</span></div>';
@@ -571,10 +571,10 @@ button:focus-visible, a:focus-visible, textarea:focus-visible, input:focus-visib
       list.slice().reverse().forEach(function (v, i) {
         h += '<div class="ver"><span class="t"><a href="' + esc(v.url) + '" target="_blank" rel="noopener">' + esc(v.title) + '</a>' + (i === 0 ? '<span class="latest">последняя</span>' : '') + '</span><span class="when">' + esc(v.date) + '</span>' +
           (edit ? '<button type="button" class="x" data-del-dr="' + v.id + '" aria-label="Удалить">✕</button>' : '<span></span>') +
-          '<span class="note">' + (v.filename ? esc(v.filename) : '') + (v.note ? (v.filename ? ' · ' : '') + esc(v.note) : '') + '</span></div>';
+          '<span class="note"><a class="dl" href="' + esc(v.url) + '?download=' + encodeURIComponent(v.filename || v.title) + '">⬇ Скачать</a> · ' + (v.filename ? esc(v.filename) : '') + (v.note ? (v.filename ? ' · ' : '') + esc(v.note) : '') + '</span></div>';
       });
       if (edit) {
-        h += '<form class="form" data-dr-form="' + pr[0] + '"><label class="wide">Название версии<input name="title" required maxlength="100" placeholder="Например: План 1 этажа, правка 3"></label>' +
+        h += '<form class="form" data-dr-form="' + pr[0] + '"><label class="wide">Название (если пусто, возьмётся имя файла)<input name="title" maxlength="100" placeholder="Например: План 1 этажа, правка 3"></label>' +
           '<label>Дата<input name="date" type="date" required value="' + moscowNow().date + '"></label>' +
           '<label>Файл<input name="file" type="file" required></label>' +
           '<label class="wide">Что изменено<input name="note" maxlength="200" placeholder="Коротко, по желанию"></label>' +
@@ -607,7 +607,7 @@ button:focus-visible, a:focus-visible, textarea:focus-visible, input:focus-visib
         var btn = f.querySelector('button[type=submit]'); btn.disabled = true; btn.textContent = 'Загрузка…';
         act(async function () {
           var path = await uploadFile(file);
-          await rpc('vx_file_add', { p_code: CODE, p_project: k, p_title: String(fd.get('title')).trim(), p_date: String(fd.get('date')), p_note: String(fd.get('note') || '').trim(), p_path: path, p_filename: file.name });
+          await rpc('vx_file_add', { p_code: CODE, p_project: k, p_title: (String(fd.get('title')).trim() || file.name).slice(0, 100), p_date: String(fd.get('date')), p_note: String(fd.get('note') || '').trim(), p_path: path, p_filename: file.name });
         });
       });
     });

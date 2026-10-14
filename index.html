@@ -96,7 +96,8 @@ button:focus-visible, a:focus-visible, textarea:focus-visible, input:focus-visib
 .top { display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap; padding-bottom: 14px; border-bottom: 1px solid var(--line); }
 .top .logo { font-size: 17px; }
 .top-right { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
-.who { display: inline-flex; align-items: center; gap: 8px; font-size: 14px; color: var(--muted); }
+.who { font-size: 14px; color: var(--muted); }
+.who strong { color: var(--ink); }
 .seg { display: inline-flex; border: 1px solid var(--line); border-radius: 6px; overflow: hidden; }
 .seg button { border: none; background: var(--surface); padding: 6px 12px; cursor: pointer; font-size: 14px; color: var(--muted); }
 .seg button + button { border-left: 1px solid var(--line); }
@@ -154,8 +155,8 @@ button:focus-visible, a:focus-visible, textarea:focus-visible, input:focus-visib
 .item .when { color: var(--muted); font-size: 13px; }
 .x { border: none; background: none; color: var(--muted); cursor: pointer; font-size: 18px; padding: 2px 8px; }
 .x:hover { color: var(--bad); }
-.add { display: flex; gap: 8px; padding: 12px 16px; border-top: 1px solid var(--line); }
-.add input { flex: 1; min-width: 0; background: var(--bg); border: 1px solid var(--line); border-radius: 6px; padding: 9px 10px; }
+.add { display: flex; gap: 8px; flex-wrap: wrap; padding: 12px 16px; border-top: 1px solid var(--line); }
+.add input { flex: 1 1 160px; min-width: 0; background: var(--bg); border: 1px solid var(--line); border-radius: 6px; padding: 9px 10px; }
 
 .sch-sum { margin: 0; }
 .sch-sum strong { font-weight: 700; }
@@ -235,12 +236,7 @@ button:focus-visible, a:focus-visible, textarea:focus-visible, input:focus-visib
   <header class="top">
     <div class="logo">VEXXO</div>
     <div class="top-right">
-      <span class="who">Я:
-        <span class="seg" id="me" role="group" aria-label="Кто сейчас на сайте">
-          <button type="button" data-me="ulya" aria-pressed="false">Уля</button>
-          <button type="button" data-me="maxim" aria-pressed="true">Максим</button>
-        </span>
-      </span>
+      <span class="who">Вы вошли как <strong id="me-name"></strong></span>
       <button type="button" class="exit" id="exit">Выйти</button>
     </div>
   </header>
@@ -265,7 +261,8 @@ button:focus-visible, a:focus-visible, textarea:focus-visible, input:focus-visib
 
 <script>
 (function () {
-  var PIN = '1111'; // Защита только от случайных гостей: код виден в исходнике страницы.
+  // Коды входа. Защита только от случайных гостей: коды видны в исходнике страницы.
+  var CODES = { '1111': 'maxim', '2222': 'ulya' };
   var SKEY = 'vexxo:unlocked', DKEY = 'vexxo:data:v2';
   var NAMES = { ulya: 'Уля', maxim: 'Максим' };
   var DAYN = ['Воскресенье', 'Понедельник', 'Вторник', 'Среда', 'Четверг', 'Пятница', 'Суббота'];
@@ -299,12 +296,20 @@ button:focus-visible, a:focus-visible, textarea:focus-visible, input:focus-visib
       { id: 'e1', ex: true, title: 'Поход в кино', date: '2026-10-17', time: '19:00', by: 'maxim', votes: { maxim: 'yes', ulya: '' } },
       { id: 'e2', ex: true, title: 'Вместе сделать чертёж по САПР', date: '2026-10-18', time: '15:00', by: 'ulya', votes: { ulya: 'yes', maxim: '' } }
     ],
-    notes: { ulya: [], maxim: [] },
+    plans: { ulya: [], maxim: [] },
+    tasks: { ulya: [], maxim: [] },
     drawings: { sapr: [], arch: [] }
   };
   try {
     var raw = localStorage.getItem(DKEY);
-    if (raw) { var s = JSON.parse(raw); if (s && s.events && s.notes && s.drawings) state = s; }
+    if (raw) {
+      var s0 = JSON.parse(raw);
+      if (s0 && s0.events && s0.drawings) {
+        if (!s0.tasks) s0.tasks = s0.notes || { ulya: [], maxim: [] };
+        if (!s0.plans) s0.plans = { ulya: [], maxim: [] };
+        delete s0.notes; state = s0;
+      }
+    }
   } catch (e) {}
   function save() { try { localStorage.setItem(DKEY, JSON.stringify(state)); } catch (e) {} }
 
@@ -327,14 +332,14 @@ button:focus-visible, a:focus-visible, textarea:focus-visible, input:focus-visib
   function paintDots() { var d = dots.children; for (var i = 0; i < d.length; i++) d[i].className = i < entered.length ? 'on' : ''; }
   function unlock(remember) {
     lock.hidden = true; app.hidden = false; fab.hidden = false;
-    if (remember) { try { sessionStorage.setItem(SKEY, '1'); } catch (e) {} }
+    if (remember) { try { sessionStorage.setItem(SKEY, state.me); } catch (e) {} }
     paintMe(); go(fromHash() || 'cal');
   }
   function press(k) {
     if (k === 'back') entered = entered.slice(0, -1); else if (entered.length < 4) entered += k;
     paintDots();
     if (entered.length === 4) {
-      if (entered === PIN) { entered = ''; unlock(true); }
+      if (CODES[entered]) { state.me = CODES[entered]; entered = ''; unlock(true); }
       else {
         hint.textContent = 'Неверный код, попробуй ещё раз';
         dots.classList.remove('bad'); void dots.offsetWidth; dots.classList.add('bad');
@@ -353,18 +358,11 @@ button:focus-visible, a:focus-visible, textarea:focus-visible, input:focus-visib
     entered = ''; paintDots(); hint.textContent = 'Код пока временный';
   });
 
-  /* ----- кто я ----- */
-  function paintMe() {
-    var b = $('me').querySelectorAll('button');
-    for (var i = 0; i < b.length; i++) b[i].setAttribute('aria-pressed', b[i].getAttribute('data-me') === state.me ? 'true' : 'false');
-  }
-  $('me').addEventListener('click', function (e) {
-    var b = e.target.closest('button[data-me]'); if (!b) return;
-    state.me = b.getAttribute('data-me'); save(); paintMe(); render();
-  });
+  /* ----- кто вошёл ----- */
+  function paintMe() { $('me-name').textContent = NAMES[state.me]; }
 
   /* ----- навигация ----- */
-  var view = 'cal', sub = { ulya: 'notes', maxim: 'notes' };
+  var view = 'cal', sub = { ulya: 'plans', maxim: 'plans' };
   function fromHash() { var h = (location.hash || '').replace('#', ''); return (h === 'cal' || NAMES[h]) ? h : ''; }
   function go(v) {
     view = v;
@@ -422,38 +420,46 @@ button:focus-visible, a:focus-visible, textarea:focus-visible, input:focus-visib
 
   /* ----- страница человека ----- */
   function renderPerson(who) {
-    var tabs = [['notes', 'Заметки и планы'], ['sched', 'Расписание']];
+    var tabs = [['plans', 'Планы'], ['tasks', 'Задачи'], ['sched', 'Расписание']];
     if (who === 'maxim') tabs.push(['draw', 'Чертежи']);
     var h = '<h1>' + NAMES[who] + '</h1><div class="sub" id="sub">' +
       tabs.map(function (t) { return '<button type="button" data-s="' + t[0] + '" aria-pressed="' + (sub[who] === t[0]) + '">' + t[1] + '</button>'; }).join('') + '</div>';
-    if (sub[who] === 'notes') h += notesHtml(who);
+    if (sub[who] === 'plans' || sub[who] === 'tasks') h += boardHtml(sub[who], who);
     else if (sub[who] === 'sched') h += schedHtml(who);
     else h += drawHtml();
     $('view').innerHTML = h;
     $('sub').addEventListener('click', function (e) { var b = e.target.closest('button[data-s]'); if (b) { sub[who] = b.getAttribute('data-s'); renderPerson(who); } });
-    if (sub[who] === 'notes') bindNotes(who);
+    if (sub[who] === 'plans' || sub[who] === 'tasks') bindBoard(sub[who], who);
     if (sub[who] === 'draw') bindDraw();
   }
 
-  function notesHtml(who) {
-    var list = state.notes[who];
-    var h = '<section class="panel"><ul class="list">';
-    if (!list.length) h += '<li class="empty">Пока пусто. Добавь первый пункт ниже.</li>';
+  var BOARD = {
+    plans: { lead: 'Куда пойти и что сделать, с примерным временем.', ph: 'Например: погулять', when: 'Когда примерно: сб, около 18:00', empty: 'Пока нет планов. Добавь первый ниже.' },
+    tasks: { lead: 'Что нужно купить или сделать.', ph: 'Например: купить краску для принтера', when: '', empty: 'Пока нет задач. Добавь первую ниже.' }
+  };
+  function boardHtml(kind, who) {
+    var c = BOARD[kind], list = state[kind][who];
+    var h = '<p class="lead">' + c.lead + '</p><section class="panel"><ul class="list">';
+    if (!list.length) h += '<li class="empty">' + c.empty + '</li>';
     list.forEach(function (n) {
-      h += '<li class="item' + (n.done ? ' done' : '') + '"><input type="checkbox" data-chk="' + n.id + '"' + (n.done ? ' checked' : '') + ' aria-label="Выполнено"><span class="t">' + esc(n.text) + '</span><button type="button" class="x" data-del="' + n.id + '" aria-label="Удалить">✕</button></li>';
+      h += '<li class="item' + (n.done ? ' done' : '') + '"><input type="checkbox" data-chk="' + n.id + '"' + (n.done ? ' checked' : '') + ' aria-label="Выполнено"><span class="t">' + esc(n.text) +
+        (n.when ? '<br><span class="when">' + esc(n.when) + '</span>' : '') + '</span><button type="button" class="x" data-del="' + n.id + '" aria-label="Удалить">✕</button></li>';
     });
-    h += '</ul><form class="add" id="note-form"><input id="note-text" maxlength="200" placeholder="Новая заметка или план" aria-label="Новая заметка" required><button type="submit" class="btn primary">Добавить</button></form></section>';
+    h += '</ul><form class="add" id="board-form"><input id="board-text" maxlength="200" placeholder="' + c.ph + '" aria-label="Название" required>' +
+      (c.when ? '<input id="board-when" maxlength="60" placeholder="' + c.when + '" aria-label="Когда примерно">' : '') +
+      '<button type="submit" class="btn primary">Добавить</button></form></section>';
     return h;
   }
-  function bindNotes(who) {
-    $('note-form').addEventListener('submit', function (e) {
-      e.preventDefault(); var t = $('note-text').value.trim(); if (!t) return;
-      state.notes[who].push({ id: uid(), text: t, done: false }); save(); renderPerson(who);
+  function bindBoard(kind, who) {
+    $('board-form').addEventListener('submit', function (e) {
+      e.preventDefault(); var t = $('board-text').value.trim(); if (!t) return;
+      var w = $('board-when') ? $('board-when').value.trim() : '';
+      state[kind][who].push({ id: uid(), text: t, when: w, done: false }); save(); renderPerson(who);
     });
     $('view').querySelector('.list').addEventListener('click', function (e) {
-      var d = e.target.closest('[data-del]'); var c = e.target.closest('[data-chk]');
-      if (d) { state.notes[who] = state.notes[who].filter(function (n) { return n.id !== d.getAttribute('data-del'); }); save(); renderPerson(who); }
-      else if (c) { state.notes[who].forEach(function (n) { if (n.id === c.getAttribute('data-chk')) n.done = c.checked; }); save(); renderPerson(who); }
+      var d = e.target.closest('[data-del]'), c = e.target.closest('[data-chk]');
+      if (d) { state[kind][who] = state[kind][who].filter(function (n) { return n.id !== d.getAttribute('data-del'); }); save(); renderPerson(who); }
+      else if (c) { state[kind][who].forEach(function (n) { if (n.id === c.getAttribute('data-chk')) n.done = c.checked; }); save(); renderPerson(who); }
     });
   }
 
@@ -542,9 +548,9 @@ button:focus-visible, a:focus-visible, textarea:focus-visible, input:focus-visib
   });
   setInterval(function () { if (!app.hidden && view !== 'cal' && sub[view] === 'sched') renderPerson(view); }, 60000);
 
-  var ok = false;
-  try { ok = sessionStorage.getItem(SKEY) === '1'; } catch (e) {}
-  if (ok) unlock(false);
+  var who0 = '';
+  try { who0 = sessionStorage.getItem(SKEY) || ''; } catch (e) {}
+  if (NAMES[who0]) { state.me = who0; unlock(false); }
 })();
 </script>
 

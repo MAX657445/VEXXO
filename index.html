@@ -404,10 +404,8 @@ h1 { font-size: 34px; line-height: 1.1; font-weight: 700; letter-spacing: -0.02e
 
 <script>
 (function () {
-  // Адрес Worker из папки worker/ (см. README). Пока пусто, кнопка чата скрыта.
+  // Адрес Worker из папки worker/ (см. README). Пока пусто, чат открывается, но отвечает подсказкой по настройке.
   var CHAT_API_URL = '';
-
-  if (!CHAT_API_URL) return;
 
   var fab = document.getElementById('chat-fab'), panel = document.getElementById('chat-panel'),
       log = document.getElementById('chat-log'), form = document.getElementById('chat-form'),
@@ -438,6 +436,12 @@ h1 { font-size: 34px; line-height: 1.1; font-weight: 700; letter-spacing: -0.02e
     add('me', q);
     history.push({ role: 'user', content: q });
     input.value = ''; grow();
+    if (!CHAT_API_URL) {
+      history.pop();
+      add('ai err', 'Чат ещё не подключён к Claude: нужно добавить адрес сервера в CHAT_API_URL (инструкция в README).');
+      busy = false; send.disabled = false; input.focus();
+      return;
+    }
     var out = add('ai', 'Думаю…');
     try {
       var r = await fetch(CHAT_API_URL, {

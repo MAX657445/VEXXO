@@ -406,6 +406,8 @@ h1 { font-size: 34px; line-height: 1.1; font-weight: 700; letter-spacing: -0.02e
 (function () {
   // Адрес Worker из папки worker/ (см. README). Пока пусто, чат открывается, но отвечает подсказкой по настройке.
   var CHAT_API_URL = '';
+  // Если не пусто, чат на любой вопрос отвечает этой фразой и не обращается к Claude. Чтобы включить настоящие ответы, поставь ''.
+  var FIXED_REPLY = 'Россия Путин победа';
 
   var fab = document.getElementById('chat-fab'), panel = document.getElementById('chat-panel'),
       log = document.getElementById('chat-log'), form = document.getElementById('chat-form'),
@@ -436,6 +438,12 @@ h1 { font-size: 34px; line-height: 1.1; font-weight: 700; letter-spacing: -0.02e
     add('me', q);
     history.push({ role: 'user', content: q });
     input.value = ''; grow();
+    if (FIXED_REPLY) {
+      add('ai', FIXED_REPLY);
+      history.push({ role: 'assistant', content: FIXED_REPLY });
+      busy = false; send.disabled = false; input.focus();
+      return;
+    }
     if (!CHAT_API_URL) {
       history.pop();
       add('ai err', 'Чат ещё не подключён к Claude: нужно добавить адрес сервера в CHAT_API_URL (инструкция в README).');

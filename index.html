@@ -1,0 +1,326 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Расписание 302s</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Onest:wght@400;500;700&family=IBM+Plex+Mono:wght@400;500&display=swap">
+<style>
+/* Layout: one narrow column. Person switcher on top, a one-line summary of today, then the week as stacked day cards. */
+:root {
+  --bg: #EDF0F5;
+  --surface: #FFFFFF;
+  --ink: #16213B;
+  --muted: #5A6479;
+  --line: #D5DBE6;
+  --accent: #1F4FD8;
+  --on-accent: #FFFFFF;
+  --tint: #E6ECFB;
+  --font-sans: "Onest", system-ui, -apple-system, "Segoe UI", sans-serif;
+  --font-mono: "IBM Plex Mono", ui-monospace, "SF Mono", Menlo, monospace;
+  color-scheme: light;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #0E131B;
+    --surface: #161D28;
+    --ink: #E8EDF5;
+    --muted: #9AA5B8;
+    --line: #263042;
+    --accent: #7EA0FF;
+    --on-accent: #0E131B;
+    --tint: #1D2740;
+    color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --bg: #0E131B;
+  --surface: #161D28;
+  --ink: #E8EDF5;
+  --muted: #9AA5B8;
+  --line: #263042;
+  --accent: #7EA0FF;
+  --on-accent: #0E131B;
+  --tint: #1D2740;
+  color-scheme: dark;
+}
+
+* { box-sizing: border-box; }
+body {
+  margin: 0;
+  background: var(--bg);
+  color: var(--ink);
+  font-family: var(--font-sans);
+  font-size: 16px;
+  line-height: 1.45;
+  padding-block: 24px 48px;
+  padding-left: max(16px, env(safe-area-inset-left, 0px));
+  padding-right: max(16px, env(safe-area-inset-right, 0px));
+}
+.wrap { max-width: 640px; margin-inline: auto; display: flex; flex-direction: column; gap: 20px; min-width: 0; }
+
+.eyebrow {
+  font-family: var(--font-mono);
+  font-size: 12px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--muted);
+  margin: 0 0 6px;
+}
+h1 { font-size: 34px; line-height: 1.1; font-weight: 700; letter-spacing: -0.02em; margin: 0; text-wrap: balance; }
+
+.who { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; }
+.who button {
+  font: inherit;
+  font-weight: 500;
+  font-size: 17px;
+  padding: 14px 8px;
+  border-radius: 10px;
+  border: 1px solid var(--line);
+  background: var(--surface);
+  color: var(--ink);
+  cursor: pointer;
+  transition: background-color 0.15s, color 0.15s, border-color 0.15s;
+}
+.who button:hover { border-color: var(--accent); }
+.who button[aria-pressed="true"] { background: var(--accent); border-color: var(--accent); color: var(--on-accent); font-weight: 700; }
+.who button:focus-visible, a:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+
+.summary { margin: 0; font-size: 16px; }
+.summary strong { font-weight: 700; }
+.summary .mono { font-family: var(--font-mono); font-size: 14px; }
+
+.weeklabel {
+  font-family: var(--font-mono);
+  font-size: 12px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--muted);
+  margin: 4px 0 -8px;
+}
+#days { display: flex; flex-direction: column; gap: 14px; }
+
+.day { background: var(--surface); border: 1px solid var(--line); border-radius: 12px; overflow: hidden; }
+.day.past { opacity: 0.6; }
+.day header { display: flex; align-items: baseline; gap: 10px; padding: 12px 16px; border-bottom: 1px solid var(--line); }
+.day h2 { font-size: 18px; font-weight: 700; margin: 0; }
+.day .date { font-family: var(--font-mono); font-size: 14px; color: var(--muted); }
+.day .pill {
+  margin-left: auto;
+  font-family: var(--font-mono);
+  font-size: 12px;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  background: var(--accent);
+  color: var(--on-accent);
+  padding: 3px 8px;
+  border-radius: 999px;
+}
+.day.today { border-color: var(--accent); }
+.day.today header { background: var(--tint); }
+
+.day ol { list-style: none; margin: 0; padding: 0; }
+.pair { display: grid; grid-template-columns: 2.25rem minmax(0, 1fr) auto; align-items: center; gap: 12px; padding: 12px 16px; }
+.pair + .pair { border-top: 1px solid var(--line); }
+.pair .num {
+  font-family: var(--font-mono);
+  font-size: 18px;
+  font-weight: 500;
+  color: var(--muted);
+  width: 2.25rem;
+  height: 2.25rem;
+  display: grid;
+  place-items: center;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+}
+.pair .what { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.pair .subject { font-weight: 500; font-size: 17px; overflow-wrap: anywhere; }
+.pair .time { font-family: var(--font-mono); font-size: 13px; color: var(--muted); font-variant-numeric: tabular-nums; }
+.pair .room {
+  font-family: var(--font-mono);
+  font-size: 14px;
+  font-weight: 500;
+  padding: 4px 9px;
+  border-radius: 6px;
+  background: var(--tint);
+  white-space: nowrap;
+}
+.pair .flag { font-style: normal; font-weight: 500; color: var(--accent); margin-left: 6px; text-transform: uppercase; letter-spacing: 0.06em; font-size: 12px; }
+.pair.done { opacity: 0.5; }
+.pair.live { background: var(--tint); }
+.pair.live .num { background: var(--accent); border-color: var(--accent); color: var(--on-accent); }
+
+.empty { background: var(--surface); border: 1px dashed var(--line); border-radius: 12px; padding: 24px 16px; text-align: center; color: var(--muted); }
+.empty strong { display: block; color: var(--ink); font-size: 18px; margin-bottom: 4px; }
+
+.foot { font-size: 13px; color: var(--muted); margin: 0; }
+.foot a { color: var(--accent); }
+
+@media (prefers-reduced-motion: reduce) { .who button { transition: none; } }
+</style>
+
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <p class="eyebrow">ПсковГУ · группа 302s</p>
+    <h1>Расписание</h1>
+  </header>
+
+  <div class="who" role="group" aria-label="Чьё расписание показать">
+    <button type="button" id="btn-vitya" data-p="vitya" aria-pressed="false">Витя</button>
+    <button type="button" id="btn-ulya" data-p="ulya" aria-pressed="false">Уля</button>
+    <button type="button" id="btn-maxim" data-p="maxim" aria-pressed="true">Максим</button>
+  </div>
+
+  <p class="summary" id="summary"></p>
+  <p class="weeklabel" id="weeklabel"></p>
+  <div id="days"></div>
+
+  <p class="foot">Расписание внесено вручную. Актуальный вариант на <a href="https://rasp.pskgu.ru/k/groups/302s.html">rasp.pskgu.ru</a>.</p>
+</div>
+
+<script>
+(function () {
+  var PEOPLE = {
+    vitya: { name: 'Витя', gen: 'Вити' },
+    ulya: { name: 'Уля', gen: 'Ули' },
+    maxim: { name: 'Максим', gen: 'Максима' }
+  };
+
+  // Pair number -> [start, end]
+  var PAIR_TIMES = {
+    1: ['08:30', '10:00'],
+    2: ['10:15', '11:45'],
+    3: ['12:30', '14:00'],
+    4: ['14:15', '15:45'],
+    5: ['16:00', '17:30']
+  };
+
+  var WEEK = [
+    { date: '2026-10-13', name: 'Вторник' },
+    { date: '2026-10-14', name: 'Среда' },
+    { date: '2026-10-15', name: 'Четверг' },
+    { date: '2026-10-16', name: 'Пятница' }
+  ];
+
+  // [pair number, subject, room]
+  var SCHEDULE = {
+    maxim: {
+      '2026-10-13': [[2, 'Архитектура', '2-31'], [3, 'Архитектура', '2-31'], [4, 'Физра', 'С3'], [5, 'Английский', '1-5']],
+      '2026-10-14': [[2, 'САПР', '1-28'], [3, 'САПР', '1-5']],
+      '2026-10-15': [[1, 'САПР', '1-28'], [2, 'Архитектура', '2-31'], [3, 'Архитектура', '2-31']],
+      '2026-10-16': [[3, 'ОБЖ', '1-24а'], [4, 'ОБЖ', '1-23']]
+    },
+    vitya: null,
+    ulya: null
+  };
+
+  var MONTHS = ['января', 'февраля', 'марта', 'апреля', 'мая', 'июня', 'июля', 'августа', 'сентября', 'октября', 'ноября', 'декабря'];
+  var KEY = 'sched302s:person';
+
+  var current = 'maxim';
+  try {
+    var saved = localStorage.getItem(KEY);
+    if (saved && PEOPLE[saved]) current = saved;
+  } catch (e) {}
+
+  function moscowNow() {
+    var parts = new Intl.DateTimeFormat('en-CA', {
+      timeZone: 'Europe/Moscow', year: 'numeric', month: '2-digit', day: '2-digit',
+      hour: '2-digit', minute: '2-digit', hourCycle: 'h23'
+    }).formatToParts(new Date());
+    function g(t) { for (var i = 0; i < parts.length; i++) if (parts[i].type === t) return parts[i].value; return '0'; }
+    return { date: g('year') + '-' + g('month') + '-' + g('day'), minutes: parseInt(g('hour'), 10) * 60 + parseInt(g('minute'), 10) };
+  }
+  function toMin(s) { var p = s.split(':'); return parseInt(p[0], 10) * 60 + parseInt(p[1], 10); }
+  function longDate(iso) { var p = iso.split('-'); return parseInt(p[2], 10) + ' ' + MONTHS[parseInt(p[1], 10) - 1]; }
+  function shortDate(iso) { var p = iso.split('-'); return p[2] + '.' + p[1]; }
+  function pl(n, one, few, many) {
+    var m10 = n % 10, m100 = n % 100;
+    if (m10 === 1 && m100 !== 11) return one;
+    if (m10 >= 2 && m10 <= 4 && (m100 < 12 || m100 > 14)) return few;
+    return many;
+  }
+  function esc(s) { return String(s).replace(/[&<>"]/g, function (c) { return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]; }); }
+
+  function render() {
+    var now = moscowNow();
+    var data = SCHEDULE[current];
+    var summary = document.getElementById('summary');
+    var weeklabel = document.getElementById('weeklabel');
+    var days = document.getElementById('days');
+
+    var btns = document.querySelectorAll('.who button');
+    for (var i = 0; i < btns.length; i++) {
+      btns[i].setAttribute('aria-pressed', btns[i].getAttribute('data-p') === current ? 'true' : 'false');
+    }
+
+    if (!data) {
+      summary.textContent = '';
+      weeklabel.textContent = '';
+      days.innerHTML = '<div class="empty"><strong>Расписание не добавлено</strong>Для ' + esc(PEOPLE[current].gen) + ' пока ничего нет.</div>';
+      return;
+    }
+
+    var todayPairs = data[now.date];
+    if (todayPairs && todayPairs.length) {
+      var first = PAIR_TIMES[todayPairs[0][0]][0];
+      var last = PAIR_TIMES[todayPairs[todayPairs.length - 1][0]][1];
+      summary.innerHTML = 'Сегодня, ' + longDate(now.date) + ': <strong>' + todayPairs.length + ' ' + pl(todayPairs.length, 'пара', 'пары', 'пар') + '</strong>, <span class="mono">' + first + '–' + last + '</span>';
+    } else {
+      summary.innerHTML = 'Сегодня, ' + longDate(now.date) + ': <strong>пар нет</strong>';
+    }
+
+    weeklabel.textContent = 'Неделя ' + parseInt(WEEK[0].date.slice(8), 10) + '–' + parseInt(WEEK[WEEK.length - 1].date.slice(8), 10) + ' ' + MONTHS[parseInt(WEEK[0].date.slice(5, 7), 10) - 1];
+
+    var html = '';
+    for (var d = 0; d < WEEK.length; d++) {
+      var day = WEEK[d];
+      var pairs = data[day.date] || [];
+      var isToday = day.date === now.date;
+      var isPast = day.date < now.date;
+      var cls = 'day' + (isToday ? ' today' : '') + (isPast ? ' past' : '');
+      html += '<section class="' + cls + '"><header><h2>' + day.name + '</h2><span class="date">' + shortDate(day.date) + '</span>' + (isToday ? '<span class="pill">Сегодня</span>' : '') + '</header>';
+      if (!pairs.length) {
+        html += '<div class="pair"><span></span><span class="time">Пар нет</span><span></span></div>';
+      } else {
+        html += '<ol>';
+        var nextMarked = false;
+        for (var k = 0; k < pairs.length; k++) {
+          var pr = pairs[k];
+          var t = PAIR_TIMES[pr[0]];
+          var state = '', flag = '';
+          if (isToday) {
+            var s = toMin(t[0]), e = toMin(t[1]);
+            if (now.minutes >= e) state = ' done';
+            else if (now.minutes >= s) { state = ' live'; flag = '<em class="flag">идёт</em>'; }
+            else if (!nextMarked) { nextMarked = true; flag = '<em class="flag">дальше</em>'; }
+          }
+          html += '<li class="pair' + state + '"><span class="num" title="' + pr[0] + '-я пара">' + pr[0] + '</span><div class="what"><span class="subject">' + esc(pr[1]) + '</span><span class="time">' + t[0] + '–' + t[1] + flag + '</span></div><span class="room">' + esc(pr[2]) + '</span></li>';
+        }
+        html += '</ol>';
+      }
+      html += '</section>';
+    }
+    days.innerHTML = html;
+  }
+
+  var btns = document.querySelectorAll('.who button');
+  for (var i = 0; i < btns.length; i++) {
+    btns[i].addEventListener('click', function () {
+      current = this.getAttribute('data-p');
+      try { localStorage.setItem(KEY, current); } catch (e) {}
+      render();
+    });
+  }
+
+  render();
+  setInterval(render, 60000);
+})();
+</script>
+</body>
+</html>

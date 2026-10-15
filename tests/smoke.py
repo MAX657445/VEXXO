@@ -57,7 +57,7 @@ LOG = [{"id": 2, "at": "2026-10-14T17:00:00+00:00", "who": "ulya", "action": "ta
 MOCK = {'vx_session_start': json.dumps(TOKEN), 'vx_load': json.dumps(data), 'vx_change_code': '"ok"', 'vx_file_prepare': '"44444444-4444-4444-4444-444444444444/new.pdf"',
   'vx_admin_overview': json.dumps(OVERVIEW), 'vx_admin_logins': json.dumps(LOGINS), 'vx_admin_storage': json.dumps(STORAGE), 'vx_admin_log': json.dumps(LOG),
   'vx_admin_lock': 'true', 'vx_admin_kick': '1', 'vx_admin_reset_code': '"ok"', 'vx_admin_purge': '1', 'vx_admin_clean_orphans': '1', 'vx_admin_backup': json.dumps({"events": [], "items": []}),
-  'vx_admin_tg': '17', 'vx_admin_tg_status': json.dumps({"state": "ok", "status": 200}), 'vx_admin_set': json.dumps({}), 'vx_admin_run': 'true', 'vx_me_tg': 'true'}
+  'vx_admin_tg': '17', 'vx_admin_tg_status': json.dumps({"state": "ok", "status": 200}), 'vx_admin_set': json.dumps({}), 'vx_admin_member_remove': 'true', 'vx_admin_run': 'true', 'vx_me_tg': 'true'}
 MOCK.update({'vx_admin_member_invite': json.dumps('fedcba9876543210fedcba9876543210'), 'vx_admin_member_set': 'true', 'vx_admin_member_invites_clear': '1',
   'vx_me_profile': json.dumps({"name": "maxim", "title": "Макс", "fem": False}), 'vx_ticket_use': json.dumps(TOKEN)})
 MOCK.update({'vx_invite_create': json.dumps('0123456789abcdef0123456789abcdef'), 'vx_tg_poll_now': '0', 'vx_tg_unlink': 'true',
@@ -257,6 +257,8 @@ with sync_playwright() as p:
     check('короткий пароль не уходит', not sent('vx_admin_reset_code'))
     pg.fill('#rs-new', '246810'); pg.click('#rs-form button[type=submit]'); pg.wait_for_selector('#modal', state='hidden')
     check('сброс пароля выбранного участника', sent('vx_admin_reset_code', '"p_new":"246810"', '"p_name":"ulya"'))
+    dl = pg.locator('[data-a="member-del"][data-arg="ulya"]'); dl.click(); dl.click(); pg.wait_for_timeout(300)
+    check('админ удаляет участника с сайта', sent('vx_admin_member_remove', '"p_name":"ulya"', TOKEN))
     k = pg.locator('[data-a="kick"][data-arg="anya"]'); k.click(); k.click(); pg.wait_for_timeout(300)
     check('выход за выбранного участника', sent('vx_admin_kick', '"p_name":"anya"'))
     o = pg.locator('[data-a="member-off"][data-arg="anya"]'); o.click(); o.click(); pg.wait_for_timeout(300)
@@ -421,6 +423,26 @@ with sync_playwright() as p:
     check('при закрытом сайте Уля видит экран входа с пояснением', pg.locator('#lock:not([hidden])').count() == 1 and 'временно закрыт' in pg.inner_text('#hint').lower())
     check('токен при этом не стирается', pg.evaluate("localStorage.getItem('vexxo:session')") == TOKEN)
     pg.screenshot(path=f'{SHOTS}/locked.png')
+    # ---- удалённый участник: при входе видит объяснение и дорогу в Telegram ----
+    pg.unroute('**/rpc/**', locked)
+    MOCK['vx_session_start'] = 'null'; MOCK['vx_state'] = '"removed"'
+    pg.evaluate("localStorage.removeItem('vexxo:session')"); pg.reload(); pg.wait_for_selector('#lock:not([hidden])')
+    for k in '123456': pg.click(f'[data-k="{k}"]')
+    pg.click('[data-k="ok"]'); pg.wait_for_selector('#gone:not([hidden])')
+    check('удалённому показано сообщение о технических причинах', 'по техническим причинам' in pg.inner_text('#gone') and sent('vx_state', '"p_code":"123456"'))
+    check('есть ссылка на бота в Telegram', pg.locator('#gone-link').get_attribute('href').startswith('https://t.me/maxim_claude_1488_bot'))
+    pg.screenshot(path=f'{SHOTS}/gone.png')
+    pg.click('[data-k="1"]'); check('при новом вводе сообщение прячется', pg.locator('#gone').is_hidden())
+    MOCK['vx_state'] = '"none"'
+    for k in '23456': pg.click(f'[data-k="{k}"]')
+    pg.click('[data-k="ok"]'); pg.wait_for_function("document.getElementById('hint').textContent.indexOf('Неверный') >= 0")
+    check('обычный неверный код по-прежнему «неверный код»', pg.locator('#gone').is_hidden())
+    MOCK['vx_session_start'] = json.dumps(TOKEN)
+    pg.evaluate("localStorage.setItem('vexxo:session', '" + TOKEN + "')")
+    MOCK['vx_load'] = json.dumps({"error": "forbidden"}); MOCK['vx_state'] = '"removed"'
+    pg.reload(); pg.wait_for_selector('#gone:not([hidden])')
+    check('удалённый с активной сессией тоже видит сообщение', pg.evaluate("localStorage.getItem('vexxo:session')") is None)
+    MOCK['vx_load'] = json.dumps(data)
     check('нет ошибок в консоли страницы', not errors)
     if errors: print(errors)
     b.close()

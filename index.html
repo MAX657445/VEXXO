@@ -530,6 +530,10 @@ fieldset.fld legend { padding: 0 0 6px; font-size: 13px; color: var(--muted); }
 #offline { background: var(--ink); color: var(--bg); }
 .av.on { box-shadow: 0 0 0 2px var(--surface), 0 0 0 4px var(--ink); }
 img.prev, .brand-ic { filter: grayscale(1); }
+
+.gone { margin-top: 16px; padding: 14px; border: 1px solid var(--ink); border-radius: var(--r); text-align: center; }
+.gone p { margin: 6px 0 12px; color: var(--muted); }
+.gone .btn { display: inline-flex; text-decoration: none; }
 @media (prefers-reduced-motion: reduce) { * { animation: none !important; transition: none !important; } }
 </style>
 </head>
@@ -553,6 +557,11 @@ img.prev, .brand-ic { filter: grayscale(1); }
       <button type="button" data-k="back" aria-label="Стереть">⌫</button>
     </div>
     <p class="hint" id="hint" aria-live="polite">Введи свой код</p>
+    <div class="gone" id="gone" role="alert" hidden>
+      <strong>Вас удалили с сайта по техническим причинам.</strong>
+      <p>Чтобы вернуться, откройте Telegram и зарегистрируйтесь заново через бота.</p>
+      <a class="btn primary" id="gone-link" href="#" target="_blank" rel="noopener">Открыть Telegram</a>
+    </div>
   </div>
 </div>
 
@@ -756,6 +765,13 @@ img.prev, .brand-ic { filter: grayscale(1); }
     for (var i = 0; i < n; i++) h += '<i' + (i < entered.length ? ' class="on"' : '') + '></i>';
     dots.innerHTML = h;
   }
+  // Удалённого участника сайт узнаёт по ответу базы и вместо «неверного кода» показывает объяснение и дорогу в Telegram.
+  function showGone() {
+    hint.textContent = ''; $('gone-link').href = 'https://t.me/' + BOT_USER + '?start=reg'; $('gone').hidden = false;
+  }
+  async function isGone(code) {
+    try { return (await rpc('vx_state', { p_code: code })) === 'removed'; } catch (e) { return false; }
+  }
   function badCode(msg) {
     hint.textContent = msg;
     dots.classList.remove('bad'); void dots.offsetWidth; dots.classList.add('bad');
@@ -786,7 +802,10 @@ img.prev, .brand-ic { filter: grayscale(1); }
     var tok;
     try { tok = await rpc('vx_session_start', { p_code: c, p_device: deviceLabel() }); }
     catch (e) { return badCode(/too_many_attempts/.test(e.message || '') ? 'Слишком много попыток. Подожди 5 минут.' : /site_locked/.test(e.message || '') ? 'Сайт временно закрыт. Попробуй позже.' : 'Нет связи с сервером. Попробуй ещё раз.'); }
-    if (!tok) return badCode('Неверный код, попробуй ещё раз');
+    if (!tok) {
+      if (await isGone(c)) { entered = ''; paintDots(); busyLogin = false; return showGone(); }
+      return badCode('Неверный код, попробуй ещё раз');
+    }
     CODE = tok;
     try { await loadData(); } catch (e) { CODE = ''; return badCode('Нет связи с сервером. Попробуй ещё раз.'); }
     saveToken(tok);
@@ -801,8 +820,10 @@ img.prev, .brand-ic { filter: grayscale(1); }
         if (cached && cached.me) { applyData(cached); setOffline(true); clearTimeout(lockRetry); showApp(); return; }
       }
       CODE = '';
+      var gone = e && e.forbidden && await isGone(tok);
       if (e && e.forbidden) dropToken();
       busyLogin = false;
+      if (gone) { showGone(); return; }
       if (e && /site_locked/.test(e.message || '')) { hint.textContent = LOCKED_HINT; clearTimeout(lockRetry); lockRetry = setTimeout(function () { if (!lock.hidden && !busyLogin) resume(tok); }, 20000); return; }
       hint.textContent = e && e.forbidden ? HINT0 : 'Нет связи с сервером. Обнови страницу.';
       return;
@@ -812,6 +833,7 @@ img.prev, .brand-ic { filter: grayscale(1); }
   }
   function press(k) {
     if (busyLogin) return;
+    $('gone').hidden = true;
     if (k === 'back') entered = entered.slice(0, -1);
     else if (k === 'ok') { if (entered.length >= 4) tryLogin(entered); return; }
     else if (entered.length < 12) entered += k;
@@ -827,7 +849,7 @@ img.prev, .brand-ic { filter: grayscale(1); }
     CODE = ''; state.me = ''; state.raw = null;
     closeModal(); closeSheet(); chatOpen(false);
     app.hidden = true; bottom.hidden = true; lock.hidden = false;
-    entered = ''; paintDots(); hint.textContent = HINT0;
+    entered = ''; paintDots(); hint.textContent = HINT0; $('gone').hidden = true;
   }
   function logout() {
     var t = CODE; leave();
@@ -2125,7 +2147,12 @@ img.prev, .brand-ic { filter: grayscale(1); }
     try {
       var d = await rpc('vx_load', { p_code: CODE });
       if (!d) return;
-      if (d.error) { dropToken(); leave(); hint.textContent = 'Вход устарел. Введи код заново.'; return; }
+      if (d.error) {
+        var gone2 = await isGone(CODE);
+        dropToken(); leave();
+        if (gone2) showGone(); else hint.textContent = 'Вход устарел. Введи код заново.';
+        return;
+      }
       var sig = JSON.stringify(d);
       if (sig !== lastSig) {
         lastSig = sig; applyData(d); try { localStorage.setItem(CACHE_KEY, sig); } catch (e3) {}
@@ -2651,6 +2678,7 @@ img.prev, .brand-ic { filter: grayscale(1); }
       else if (a === 'unlink') { await arpc('vx_tg_unlink', { p_name: arg }); await loadAdmin(); admSay('Telegram отключён: ' + nameOf(arg) + '.'); }
       else if (a === 'kick') { r = await arpc('vx_admin_kick', { p_name: arg }); await loadAdmin(); admSay('Закрыто устройств (' + nameOf(arg) + '): ' + (r || 0) + '.'); }
       else if (a === 'reset') { mReset(arg); }
+      else if (a === 'member-del') { await arpc('vx_admin_member_remove', { p_name: arg }); await loadData(); await loadAdmin(); admSay(nameOf(arg) + ': удалён с сайта. При входе он увидит сообщение и предложение зарегистрироваться заново через Telegram.'); }
       else if (a === 'member-off' || a === 'member-on') { await arpc('vx_admin_member_set', { p_name: arg, p_off: a === 'member-off' }); await loadData(); await loadAdmin(); admSay(nameOf(arg) + (a === 'member-off' ? ': доступ закрыт, данные сохранены.' : ': доступ возвращён.')); }
       else if (a === 'inv-clear') { r = await arpc('vx_admin_member_invites_clear', {}); await loadAdmin(); admSay('Приглашений отменено: ' + (r || 0) + '.'); }
       else if (a === 'purge') {
@@ -2746,7 +2774,8 @@ img.prev, .brand-ic { filter: grayscale(1); }
         (root ? '' : '<button type="button" class="btn small" data-a="reset" data-arg="' + esc(m.name) + '">Сбросить пароль</button>' +
           '<button type="button" class="btn small" data-a="kick" data-arg="' + esc(m.name) + '" data-confirm="1">Выйти на всех устройствах</button>' +
           (m.off ? '<button type="button" class="btn small primary" data-a="member-on" data-arg="' + esc(m.name) + '">Вернуть доступ</button>'
-                 : '<button type="button" class="btn small danger" data-a="member-off" data-arg="' + esc(m.name) + '" data-confirm="1">Отключить</button>')) +
+                 : '<button type="button" class="btn small" data-a="member-off" data-arg="' + esc(m.name) + '" data-confirm="1">Отключить</button>' +
+                   '<button type="button" class="btn small danger" data-a="member-del" data-arg="' + esc(m.name) + '" data-confirm="1">Удалить с сайта</button>')) +
         '</div></div>';
     });
     return h + '</section><p class="local-note">Пароли хранятся только в виде хэша, увидеть их нельзя. Если человек забыл пароль, задай ему новый кнопкой «Сбросить пароль». Отключённый участник не может войти, его записи остаются.</p>';

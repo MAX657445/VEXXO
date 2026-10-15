@@ -50,3 +50,7 @@ insert into vx_notify(name, chat_id) values ('maxim', ...), ('ulya', ...);
 ## Чат с Claude
 
 Плавающая кнопка «Спросить Claude» сейчас всегда отвечает фиксированной фразой (`FIXED_REPLY` в `index.html`). Настоящие ответы: ключ Claude API на console.anthropic.com, Cloudflare Worker из `worker/worker.js` (секрет `ANTHROPIC_API_KEY`, переменная `ALLOWED_ORIGIN`), адрес Worker в `CHAT_API_URL`, `FIXED_REPLY` сделать пустым.
+
+## Чистая установка одним файлом
+
+`supabase/full.sql` = `schema.sql` + миграции 2–9. Сначала стирает все таблицы и функции `vx_*`, затем создаёт заново и выдаёт случайные стартовые коды Уле и Максиму (6 цифр, видны только в результате запроса). После запуска один раз выполнить `select vx_tg_setup_webhook();`; Telegram каждый подключает заново ссылкой из бота. Файл можно запускать повторно: он каждый раз начинает с чистого листа.

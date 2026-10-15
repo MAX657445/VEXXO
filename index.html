@@ -475,6 +475,47 @@ details.up summary { padding: 12px var(--pad); cursor: pointer; color: var(--acc
 .mrow .mi { display: flex; align-items: center; gap: 12px; min-width: 0; }
 @media (min-width: 901px) { .toasts { bottom: 24px; } }
 @media (max-width: 700px) { .mcell .chip { pointer-events: none; } }
+
+/* ---- новые части: лента дня, ожидание ответа, реакции, колокольчик, офлайн, знакомство ---- */
+.frow, .wrow, .brow { display: grid; grid-template-columns: auto auto 1fr auto; gap: 10px; align-items: center; padding: 10px var(--pad); }
+.frow + .frow, .wrow + .wrow, .brow + .brow { border-top: 1px solid var(--line); }
+.frow[data-ev], .frow[data-task], .wt[data-task], .wt[data-ev], .brow { cursor: pointer; }
+.frow .tm { font-family: var(--font-mono); font-size: 12px; color: var(--muted); min-width: 40px; }
+.wrow { grid-template-columns: auto 1fr auto; flex-wrap: wrap; }
+.wrow .wt { min-width: 0; }
+.brow { grid-template-columns: auto 1fr auto; }
+.brow.unread { background: var(--accent-soft); }
+.bell-list { margin: 0 calc(var(--pad) * -1); max-height: 60vh; overflow: auto; }
+.dotn { width: 8px; height: 8px; border-radius: 50%; background: var(--accent); display: inline-block; }
+#more-n.dotn { position: absolute; top: 6px; right: calc(50% - 16px); }
+.bottom button { position: relative; }
+.ibtn { position: relative; }
+.ibtn .nb { position: absolute; top: -4px; right: -4px; min-width: 18px; height: 18px; padding: 0 5px; border-radius: 9px; background: var(--bad); color: #1b0d0c; font-size: 11px; font-weight: 700; line-height: 18px; text-align: center; }
+.reacts { display: flex; flex-wrap: wrap; gap: 8px; }
+.rbtn { border: 1px solid var(--line); background: var(--surface-2); border-radius: 999px; padding: 6px 12px; font-size: 13px; }
+.rbtn[aria-pressed="true"] { border-color: var(--accent); background: var(--accent-soft); color: var(--accent); }
+.men { color: var(--accent); font-weight: 600; }
+.av.on { box-shadow: 0 0 0 2px var(--surface), 0 0 0 4px var(--ok); }
+.banner.notice, .banner { display: flex; gap: 10px; align-items: flex-start; padding: 12px var(--pad); border-radius: var(--r); background: var(--accent-soft); border: 1px solid rgba(139, 156, 255, .35); }
+.banner span { color: var(--ink); }
+.banner.notice .ic { flex: none; margin-top: 2px; color: var(--accent); }
+#offline { margin: 0; padding: 8px var(--pad); background: var(--warn); color: #1b1405; font-size: 13px; text-align: center; font-weight: 600; }
+.toast { pointer-events: auto; }
+.toast .link { margin-left: 8px; color: var(--accent); background: none; border: 0; font-weight: 600; text-decoration: underline; }
+.ckrow { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+.ckrow + .ckrow { border-top: 1px solid var(--line); }
+.strike { text-decoration: line-through; color: var(--muted); }
+.chipck { display: inline-flex; align-items: center; gap: 6px; padding: 6px 10px; border: 1px solid var(--line); border-radius: 999px; background: var(--surface-2); font-size: 13px; cursor: pointer; }
+fieldset.fld { border: 0; padding: 0; margin: 0; min-width: 0; }
+fieldset.fld legend { padding: 0 0 6px; font-size: 13px; color: var(--muted); }
+.tour { text-align: center; padding: 8px 0 16px; }
+.tour .ic { width: 44px; height: 44px; color: var(--accent); }
+.tour h3 { margin: 10px 0 6px; font-size: 18px; }
+.tour p { margin: 0; color: var(--muted); }
+.wt { min-width: 0; }
+.topbar #new-btn { width: auto; padding: 0 12px; gap: 6px; display: inline-flex; align-items: center; }
+.topbar #new-btn .lbl { font-size: 14px; font-weight: 600; }
+@media (max-width: 700px) { .topbar #new-btn .lbl { display: none; } .frow { grid-template-columns: auto auto 1fr; } .frow .badge { grid-column: 3; justify-self: start; } }
 @media (prefers-reduced-motion: reduce) { * { animation: none !important; transition: none !important; } }
 </style>
 </head>
@@ -504,6 +545,7 @@ details.up summary { padding: 12px var(--pad); cursor: pointer; color: var(--acc
 <div class="shell" id="app" hidden>
   <aside class="side" id="side" aria-label="Меню"></aside>
   <div class="main">
+    <div id="offline" role="status" hidden>Нет связи. Показаны сохранённые данные, изменения сейчас недоступны.</div>
     <header class="topbar">
       <div class="brand brand-m"><div class="brand-ic" data-ico="bolt"></div></div>
       <div class="search">
@@ -512,7 +554,8 @@ details.up summary { padding: 12px var(--pad); cursor: pointer; color: var(--acc
         <kbd>/</kbd>
         <div class="qres" id="qres" hidden></div>
       </div>
-      <button type="button" class="ibtn" id="new-btn" aria-label="Создать"><span data-ico="plus"></span></button>
+      <button type="button" class="ibtn" id="new-btn" aria-label="Создать"><span data-ico="plus"></span><span class="lbl">Создать</span></button>
+      <button type="button" class="ibtn" id="bell-btn" aria-label="Уведомления"><span data-ico="bell"></span><span class="nb" id="bell-n" hidden></span></button>
       <button type="button" class="ibtn" id="chat-btn" aria-label="Помощник Claude" aria-expanded="false" aria-controls="dock"><span data-ico="chat"></span></button>
     </header>
     <main class="view" id="view" aria-live="polite"></main>
@@ -568,8 +611,10 @@ details.up summary { padding: 12px var(--pad); cursor: pointer; color: var(--acc
   var PAIR_TIMES = { 1: ['08:30', '10:00'], 2: ['10:15', '11:45'], 3: ['12:30', '14:00'], 4: ['14:15', '15:45'], 5: ['16:00', '17:30'], 6: ['18:00', '19:30'] };
   var CATS = {
     work: { n: 'Работа', c: '#8B9CFF' }, study: { n: 'Учёба', c: '#F5B84B' }, personal: { n: 'Личное', c: '#F29BC3' }, other: { n: 'Другое', c: '#7DD3C0' },
-    plan: { n: 'Планы', c: '#B9A4FF' }, task: { n: 'Сроки задач', c: '#FF9F6E' }
+    plan: { n: 'Планы', c: '#B9A4FF' }, task: { n: 'Сроки задач', c: '#FF9F6E' },
+    pair: { n: 'Пары', c: '#6FB7FF' }, draw: { n: 'Сдача чертежей', c: '#FF7A90' }
   };
+  var DRAW_ST = { draft: 'Черновик', review: 'На проверке', done: 'Готово' };
   var STATUS = [['todo', 'К выполнению'], ['doing', 'В работе'], ['review', 'На проверке'], ['done', 'Готово']];
   var STATUS_N = { todo: 'К выполнению', doing: 'В работе', review: 'На проверке', done: 'Готово' };
   var PRIO = { high: 'Высокий', mid: 'Средний', low: 'Низкий' };
@@ -603,7 +648,12 @@ details.up summary { padding: 12px var(--pad); cursor: pointer; color: var(--acc
     clock: '<circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/>',
     file: '<path d="M14 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8z"/><path d="M14 3v5h5"/>',
     star: '<path d="M12 3l2.7 5.6 6.1.9-4.4 4.3 1 6.1L12 17l-5.4 2.9 1-6.1L3.2 9.5l6.1-.9z"/>',
-    upload: '<path d="M12 16V4M7 9l5-5 5 5M4 20h16"/>'
+    upload: '<path d="M12 16V4M7 9l5-5 5 5M4 20h16"/>',
+    list: '<path d="M9 6h11M9 12h11M9 18h11"/><path d="M4 6h.01M4 12h.01M4 18h.01"/>',
+    bell: '<path d="M6 9a6 6 0 0 1 12 0c0 6 2 7 2 7H4s2-1 2-7"/><path d="M10 20a2 2 0 0 0 4 0"/>',
+    users: '<circle cx="9" cy="8" r="3.5"/><path d="M2.5 20c0-3.5 3-5.5 6.5-5.5s6.5 2 6.5 5.5"/><path d="M16 4.5a3.5 3.5 0 0 1 0 7M18 14.8c2.2.6 3.5 2.3 3.5 5.2"/>',
+    lock: '<rect x="5" y="11" width="14" height="10" rx="2"/><path d="M8 11V8a4 4 0 0 1 8 0v3"/>',
+    block: '<circle cx="12" cy="12" r="9"/><path d="M5.6 5.6l12.8 12.8"/>'
   };
   function ic(n, small) { return '<svg class="ic' + (small ? ' s' : '') + '" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">' + (ICONS[n] || '') + '</svg>'; }
   function paintIcons(root) { (root || document).querySelectorAll('[data-ico]').forEach(function (el) { if (!el.firstChild) el.innerHTML = ic(el.getAttribute('data-ico')); }); }
@@ -639,86 +689,6 @@ details.up summary { padding: 12px var(--pad); cursor: pointer; color: var(--acc
         return t ? JSON.parse(t) : null;
       });
     });
-  }
-
-  var CODE = '';
-  var state = { me: '', raw: null, schedule: [], trash: [], events: [], items: [], plans: { ulya: [], maxim: [] }, tasks: { ulya: [], maxim: [] }, comments: {}, recent: [], drawings: { sapr: [], arch: [] }, usersSig: '' };
-  var lastSig = '';
-
-  function fileUrl(path) { return SB_URL + '/storage/v1/object/public/drawings/' + path; }
-  function applyData(d) {
-    state.me = d.me;
-    if (d.users && d.users.length) {
-      setUsers(d.users);
-      var us = JSON.stringify(d.users);
-      if (us !== state.usersSig) { state.usersSig = us; if (!app.hidden) { buildNav(); markNav(); } }
-    }
-    state.events = (d.events || []).map(function (e) {
-      var v = e.votes || {}, votes = {};
-      for (var k in v) votes[k] = v[k] || '';
-      return { id: e.id, title: e.title, date: e.date, time: String(e.time).slice(0, 5), by: e.by, votes: votes, cat: e.cat || 'personal', task: e.task || '' };
-    });
-    state.plans = {}; state.tasks = {}; state.items = [];
-    ORDER.forEach(function (w) { state.plans[w] = []; state.tasks[w] = []; });
-    (d.items || []).forEach(function (i) {
-      var it = {
-        id: i.id, kind: i.kind, owner: i.owner, text: i.text, when: i.when || '', done: !!i.done, date: i.date || '', time: i.time ? String(i.time).slice(0, 5) : '',
-        by: i.by || i.owner, status: i.status || (i.done ? 'done' : 'todo'), prio: i.priority || 'mid', due: i.due || '', created: i.created || ''
-      };
-      var bucket = it.kind === 'plan' ? state.plans : state.tasks;
-      (bucket[it.owner] = bucket[it.owner] || []).push(it);
-      state.items.push(it);
-    });
-    state.comments = {};
-    (d.comments || []).forEach(function (c) { (state.comments[c.item] = state.comments[c.item] || []).push({ id: c.id, by: c.by, body: c.body, at: c.at }); });
-    state.recent = d.recent || [];
-    state.schedule = d.schedule || []; state.trash = d.trash || []; state.raw = d;
-    state.drawings = { sapr: [], arch: [] };
-    (d.files || []).forEach(function (f) {
-      if (state.drawings[f.project]) state.drawings[f.project].push({ id: f.id, title: f.title, date: f.date, note: f.note || '', filename: f.filename || '', url: fileUrl(f.path) });
-    });
-  }
-  async function loadData() {
-    var d = await rpc('vx_load', { p_code: CODE });
-    if (!d || d.error) { var e = new Error('forbidden'); e.forbidden = true; throw e; }
-    lastSig = JSON.stringify(d);
-    applyData(d);
-    if (state.me === 'maxim') cleanTrash();
-  }
-  function itemById(id) { for (var i = 0; i < state.items.length; i++) if (state.items[i].id === id) return state.items[i]; return null; }
-  function eventById(id) { for (var i = 0; i < state.events.length; i++) if (state.events[i].id === id) return state.events[i]; return null; }
-  function canEdit(it) { return !!it && (it.owner === state.me || it.by === state.me || state.me === 'maxim'); }
-
-  /* ----- сообщения, индикатор загрузки, ошибки ----- */
-  var errEl = $('err'), progN = 0;
-  function progress(on) { progN = Math.max(0, progN + (on ? 1 : -1)); $('prog').classList.toggle('on', progN > 0); }
-  function toast(msg, bad) {
-    var box = $('toasts'), t = document.createElement('div');
-    t.className = 'toast' + (bad ? ' bad' : '');
-    t.innerHTML = ic(bad ? 'x' : 'check', true) + '<span>' + esc(msg) + '</span>';
-    box.appendChild(t);
-    setTimeout(function () { t.classList.add('out'); setTimeout(function () { t.remove(); }, 350); }, bad ? 4500 : 2200);
-  }
-  function errText(e) {
-    var m = 'Нет связи с сервером. Попробуй ещё раз.';
-    if (e && e.forbidden) m = 'Вход устарел. Выйди и войди заново.';
-    else if (e && e.message === 'size') m = 'Файл больше 25 МБ.';
-    else if (e && e.message === 'upload') m = 'Не удалось загрузить файл. Попробуй ещё раз.';
-    else if (e && /too_many_attempts/.test(e.message || '')) m = 'Слишком много неверных кодов. Подожди 5 минут.';
-    else if (e && /site_locked/.test(e.message || '')) m = 'Сайт временно закрыт. Попробуй позже.';
-    else if (e && e.status === 404) m = 'В базе нет нужной функции. Нужно применить supabase/migration-6.sql.';
-    return m;
-  }
-  function showErr(e) { toast(errText(e), true); }
-  // Действие с сервером: индикатор, запрос, свежие данные, сообщение об успехе. Возвращает true, если всё получилось.
-  async function act(fn, okMsg, quiet) {
-    var ok = false;
-    progress(true);
-    try { await fn(); await loadData(); errEl.hidden = true; ok = true; if (okMsg) toast(okMsg); }
-    catch (e) { showErr(e); try { await loadData(); } catch (e2) {} }
-    progress(false);
-    if (!quiet) render();
-    return ok;
   }
 
   /* ----- время ----- */
@@ -784,7 +754,8 @@ details.up summary { padding: 12px var(--pad); cursor: pointer; color: var(--acc
     entered = ''; paintDots(); busyLogin = false; hint.textContent = HINT0;
     lock.hidden = true; app.hidden = false; bottom.hidden = false;
     buildNav(); chatInit();
-    go(fromHash() || prefs.start || 'home');
+    go(fromHash() || prefs.start || 'today');
+    if (state.profile && state.profile.tour === false) setTimeout(function () { if (!app.hidden && !modalOpen()) mTour(0); }, 500);
   }
   // Короткое название устройства для журнала входов (например «iPhone Safari»).
   function deviceLabel() {
@@ -811,6 +782,10 @@ details.up summary { padding: 12px var(--pad); cursor: pointer; color: var(--acc
     busyLogin = true; hint.textContent = 'Входим…'; CODE = tok;
     try { await loadData(); }
     catch (e) {
+      if (e && !e.forbidden && !/site_locked|too_many/.test(e.message || '')) {
+        var cached = null; try { cached = JSON.parse(localStorage.getItem(CACHE_KEY) || 'null'); } catch (e4) {}
+        if (cached && cached.me) { applyData(cached); setOffline(true); clearTimeout(lockRetry); showApp(); return; }
+      }
       CODE = '';
       if (e && e.forbidden) dropToken();
       busyLogin = false;
@@ -845,49 +820,169 @@ details.up summary { padding: 12px var(--pad); cursor: pointer; color: var(--acc
     if (t) rpc('vx_logout', { p_session: t }).catch(function () {});
   }
 
+  var CODE = '';
+  var state = { me: '', raw: null, users: [], schedule: [], trash: [], events: [], items: [], plans: {}, tasks: {}, comments: {}, ecomments: {}, fcomments: {}, react: {},
+                bell: [], lists: [], deleted: [], notice: null, profile: {}, recent: [], drawings: { sapr: [], arch: [] }, usersSig: '' };
+  var lastSig = '', offline = false, CACHE_KEY = 'vexxo:cache';
+
+  function fileUrl(path) { return SB_URL + '/storage/v1/object/public/drawings/' + path; }
+  function userOf(w) { for (var i = 0; i < state.users.length; i++) if (state.users[i].name === w) return state.users[i]; return null; }
+  // Отношение ко мне: me / friend / in (мне прислали запрос) / out (я отправил) / blocked (я заблокировал) / none.
+  function relOf(w) { if (w === state.me) return 'me'; var u = userOf(w); return u ? u.rel : 'none'; }
+  function isFriend(w) { return relOf(w) === 'friend'; }
+  function friendNames() { return state.users.filter(function (u) { return u.rel === 'friend' && !u.off; }).map(function (u) { return u.name; }); }
+  function incoming() { return state.users.filter(function (u) { return u.rel === 'in' && !u.off; }); }
+  function mentionHtml(s) {
+    return esc(s).replace(/@([A-Za-zА-Яа-яЁё0-9_-]+)/g, '<span class="men">@$1</span>');
+  }
+
+  function applyData(d) {
+    state.me = d.me;
+    if (d.users && d.users.length) {
+      setUsers(d.users); state.users = d.users;
+      var us = JSON.stringify(d.users.map(function (u) { return [u.name, u.title, u.rel, u.off, u.online]; }));
+      if (us !== state.usersSig) { state.usersSig = us; if (!app.hidden) { buildNav(); markNav(); } }
+    }
+    state.events = (d.events || []).map(function (e) {
+      var v = e.votes || {}, votes = {};
+      for (var k in v) votes[k] = v[k] || '';
+      return { id: e.id, title: e.title, date: e.date, time: String(e.time).slice(0, 5), by: e.by, votes: votes, cat: e.cat || 'personal', task: e.task || '',
+               place: e.place || '', dur: e.dur || 0, guests: e.guests || [], rule: e.rule || 'all' };
+    });
+    state.plans = {}; state.tasks = {}; state.items = [];
+    ORDER.forEach(function (w) { state.plans[w] = []; state.tasks[w] = []; });
+    (d.items || []).forEach(function (i) {
+      var it = {
+        id: i.id, kind: i.kind, owner: i.owner, text: i.text, when: i.when || '', done: !!i.done, date: i.date || '', time: i.time ? String(i.time).slice(0, 5) : '',
+        by: i.by || i.owner, status: i.status || (i.done ? 'done' : 'todo'), prio: i.priority || 'mid', due: i.due || '', created: i.created || '',
+        access: i.access || 'friends', accept: i.accept || 'ok', reason: i.reason || '', check: i.check || [], doneAt: i.done_at || ''
+      };
+      var bucket = it.kind === 'plan' ? state.plans : state.tasks;
+      (bucket[it.owner] = bucket[it.owner] || []).push(it);
+      state.items.push(it);
+    });
+    state.comments = {}; state.ecomments = {}; state.fcomments = {};
+    (d.comments || []).forEach(function (c) {
+      var o = { id: c.id, by: c.by, body: c.body, at: c.at, edited: c.edited || '' };
+      var m = c.item ? state.comments : c.event ? state.ecomments : state.fcomments, k = c.item || c.event || c.file;
+      (m[k] = m[k] || []).push(o);
+    });
+    state.react = {};
+    (d.reactions || []).forEach(function (r) { var k = r.k + ':' + r.t; (state.react[k] = state.react[k] || {})[r.w] = r.r; });
+    state.bell = d.bell || []; state.lists = d.lists || []; state.deleted = d.deleted || []; state.notice = d.notice || null; state.profile = d.profile || {};
+    state.recent = d.recent || [];
+    state.schedule = d.schedule || []; state.trash = d.trash || []; state.raw = d;
+    state.drawings = { sapr: [], arch: [] };
+    (d.files || []).forEach(function (f) {
+      if (state.drawings[f.project]) state.drawings[f.project].push({ id: f.id, title: f.title, date: f.date, note: f.note || '', filename: f.filename || '', url: fileUrl(f.path), status: f.status || 'draft', due: f.due || '' });
+    });
+  }
+  function setOffline(v) { offline = v; var b = $('offline'); if (b) b.hidden = !v; }
+  async function loadData() {
+    var d = await rpc('vx_load', { p_code: CODE });
+    if (!d || d.error) { var e = new Error('forbidden'); e.forbidden = true; throw e; }
+    lastSig = JSON.stringify(d);
+    applyData(d); setOffline(false);
+    try { localStorage.setItem(CACHE_KEY, lastSig); } catch (e2) {}
+    if (state.me === 'maxim') cleanTrash();
+  }
+  function itemById(id) { for (var i = 0; i < state.items.length; i++) if (state.items[i].id === id) return state.items[i]; return null; }
+  function eventById(id) { for (var i = 0; i < state.events.length; i++) if (state.events[i].id === id) return state.events[i]; return null; }
+  function fileById(id) { var out = null; PROJECTS.forEach(function (p) { state.drawings[p[0]].forEach(function (v) { if (v.id === id) out = v; }); }); return out; }
+  function canEdit(it) { return !!it && (it.owner === state.me || it.by === state.me || state.me === 'maxim'); }
+  /* ----- сообщения, индикатор загрузки, ошибки ----- */
+  var errEl = $('err'), progN = 0;
+  function progress(on) { progN = Math.max(0, progN + (on ? 1 : -1)); $('prog').classList.toggle('on', progN > 0); }
+  // Сообщение внизу. action: { label, fn } добавляет кнопку («Повторить», «Отменить»).
+  function toast(msg, bad, action) {
+    var box = $('toasts'), t = document.createElement('div');
+    t.className = 'toast' + (bad ? ' bad' : '');
+    t.innerHTML = ic(bad ? 'x' : 'check', true) + '<span>' + esc(msg) + '</span>' + (action ? '<button type="button" class="link" data-ta>' + esc(action.label) + '</button>' : '');
+    box.appendChild(t);
+    if (action) t.querySelector('[data-ta]').addEventListener('click', function () { t.remove(); action.fn(); });
+    setTimeout(function () { t.classList.add('out'); setTimeout(function () { t.remove(); }, 350); }, action ? 5200 : bad ? 4500 : 2200);
+  }
+  function errText(e) {
+    var m = 'Нет связи с сервером. Попробуй ещё раз.', s = (e && e.message) || '';
+    if (e && e.forbidden) m = 'Вход устарел. Выйди и войди заново.';
+    else if (s === 'size') m = 'Файл больше 25 МБ.';
+    else if (s === 'upload') m = 'Не удалось загрузить файл. Попробуй ещё раз.';
+    else if (/too_many_attempts/.test(s)) m = 'Слишком много неверных кодов. Подожди 5 минут.';
+    else if (/site_locked/.test(s)) m = 'Сайт временно закрыт. Попробуй позже.';
+    else if (/not_friend/.test(s)) m = 'Поручать можно только друзьям. Сначала добавь человека в друзья.';
+    else if (e && e.status === 404) m = 'В базе нет нужной функции. Нужно применить supabase/migration-9.sql.';
+    return m;
+  }
+  function showErr(e, retry) { toast(errText(e), true, retry ? { label: 'Повторить', fn: retry } : null); }
+  // Действие с сервером: индикатор, запрос, свежие данные, сообщение об успехе. Возвращает true, если всё получилось.
+  async function act(fn, okMsg, quiet, undo) {
+    var ok = false;
+    progress(true);
+    try { await fn(); await loadData(); errEl.hidden = true; ok = true; if (okMsg) toast(okMsg, false, undo || null); }
+    catch (e) {
+      showErr(e, e && !e.forbidden && e.message !== 'size' ? function () { act(fn, okMsg, quiet, undo); } : null);
+      try { await loadData(); } catch (e2) {}
+    }
+    progress(false);
+    if (!quiet) render();
+    return ok;
+  }
   /* ----- навигация ----- */
-  var view = 'home', sub = {};
-  var VIEWS = ['home', 'cal', 'tasks', 'draw', 'me', 'admin'];
+  var view = 'today', sub = {};
+  var VIEWS = ['today', 'cal', 'tasks', 'lists', 'draw', 'people', 'me', 'admin'];
+  var MAIN = ['today', 'cal', 'tasks', 'draw'];
   var NAV = [
-    ['Работа', [['home', 'Главная', 'home'], ['cal', 'Календарь', 'cal'], ['tasks', 'Задачи', 'tasks'], ['draw', 'Чертежи', 'draw']]],
+    ['Работа', [['today', 'Сегодня', 'home'], ['cal', 'Календарь', 'cal'], ['tasks', 'Задачи', 'tasks'], ['lists', 'Списки', 'list'], ['draw', 'Чертежи', 'draw']]],
     ['Люди', []],
     ['Настройки', [['me', 'Кабинет', 'cog'], ['admin', 'Админ', 'shield']]]
   ];
   function isPerson(v) { return ORDER.indexOf(v) >= 0; }
   function navVisible(v) { return v !== 'admin' || state.me === 'maxim'; }
-  function fromHash() { var h = (location.hash || '').replace('#', ''); return (VIEWS.indexOf(h) >= 0 || isPerson(h)) && navVisible(h) ? h : ''; }
+  function fromHash() {
+    var h = (location.hash || '').replace('#', ''); if (h === 'home') h = 'today';
+    return (VIEWS.indexOf(h) >= 0 || isPerson(h)) && navVisible(h) ? h : '';
+  }
   // Цвет значка человека: Уля розовая, Максим по умолчанию, остальные по имени.
   function avCls(w) { if (w === 'ulya') return 'ulya '; if (w === 'maxim') return ''; var n = 0, s = String(w); for (var i = 0; i < s.length; i++) n += s.charCodeAt(i); return 'c' + (n % 5) + ' '; }
-  function av(who, cls) { return '<span class="av ' + avCls(who) + (cls || '') + '" title="' + esc(NAMES[who] || '') + '">' + esc((NAMES[who] || '?').charAt(0)) + '</span>'; }
+  function av(who, cls) {
+    var u = userOf(who), on = u && u.online;
+    return '<span class="av ' + avCls(who) + (cls || '') + (on ? ' on' : '') + '" title="' + esc(NAMES[who] || '') + '">' + esc((NAMES[who] || '?').charAt(0)) + '</span>';
+  }
   function buildNav() {
     var h = '<div class="brand"><div class="brand-ic">' + ic('bolt') + '</div><div><div class="brand-n">VEXXO</div><div class="brand-s">для своих</div></div></div>';
-    NAV[1][1] = members().map(function (w) { return [w, NAMES[w], 'user']; });
+    NAV[1][1] = [['people', 'Люди', 'users']].concat([[state.me, 'Моя страница', 'user']]).concat(friendNames().map(function (w) { return [w, NAMES[w], 'user']; }));
     NAV.forEach(function (g) {
       var items = g[1].filter(function (x) { return navVisible(x[0]); });
       if (!items.length) return;
       h += '<nav class="nav-g" aria-label="' + g[0] + '"><div class="nav-gl">' + g[0] + '</div>' + items.map(function (x) {
-        return '<button type="button" class="nav-i" data-go="' + x[0] + '">' + ic(x[2]) + '<span>' + x[1] + '</span>' + (x[0] === 'tasks' ? '<span class="nb" id="nb-tasks" hidden></span>' : '') + '</button>';
+        return '<button type="button" class="nav-i" data-go="' + esc(x[0]) + '">' + ic(x[2]) + '<span>' + esc(x[1]) + '</span>' +
+          (x[0] === 'tasks' ? '<span class="nb" id="nb-tasks" hidden></span>' : x[0] === 'people' ? '<span class="nb" id="nb-people" hidden></span>' : '') + '</button>';
       }).join('') + '</nav>';
     });
     h += '<div class="side-foot"><div class="me-chip">' + av(state.me) + '<div><strong>' + esc(NAMES[state.me]) + '</strong><small>на связи</small></div></div><button type="button" class="ibtn" data-logout aria-label="Выйти" title="Выйти">' + ic('out') + '</button></div>';
     $('side').innerHTML = h;
-    var b = [['home', 'Главная', 'home'], ['cal', 'Календарь', 'cal'], ['tasks', 'Задачи', 'tasks'], ['draw', 'Чертежи', 'draw']];
+    var b = [['today', 'Сегодня', 'home'], ['cal', 'Календарь', 'cal'], ['tasks', 'Задачи', 'tasks'], ['draw', 'Чертежи', 'draw']];
     bottom.innerHTML = b.map(function (x) { return '<button type="button" data-go="' + x[0] + '">' + ic(x[2]) + '<span>' + x[1] + '</span></button>'; }).join('') +
-      '<button type="button" data-more>' + ic('more') + '<span>Ещё</span></button>';
+      '<button type="button" data-more>' + ic('more') + '<span>Ещё</span><i class="dotn" id="more-n" hidden></i></button>';
     paintIcons();
   }
+  function openTaskCount() { return state.items.filter(function (i) { return i.kind === 'task' && i.owner === state.me && i.status !== 'done' && i.accept !== 'declined'; }).length; }
+  function unreadBell() { return state.bell.filter(function (b) { return !b.read; }).length; }
   function markNav() {
-    document.querySelectorAll('[data-go]').forEach(function (b) { if (b.getAttribute('data-go') === view) b.setAttribute('aria-current', 'page'); else b.removeAttribute('aria-current'); });
+    document.querySelectorAll('[data-go]').forEach(function (b) {
+      var g = b.getAttribute('data-go'), cur = g === view || (g === 'people' && isPerson(view) && view !== state.me && false);
+      if (cur) b.setAttribute('aria-current', 'page'); else b.removeAttribute('aria-current');
+    });
     var more = bottom.querySelector('[data-more]');
-    if (more) { if (view === 'me' || view === 'admin' || isPerson(view)) more.setAttribute('aria-current', 'page'); else more.removeAttribute('aria-current'); }
-    var nb = $('nb-tasks');
-    if (nb) {
-      var n = state.items.filter(function (i) { return i.kind === 'task' && i.owner === state.me && i.status !== 'done'; }).length;
-      nb.textContent = n; nb.hidden = !n;
-    }
+    if (more) { if (['me', 'admin', 'people', 'lists'].indexOf(view) >= 0 || isPerson(view)) more.setAttribute('aria-current', 'page'); else more.removeAttribute('aria-current'); }
+    var nb = $('nb-tasks'); if (nb) { var n = openTaskCount(); nb.textContent = n; nb.hidden = !n; }
+    var rq = incoming().length, np = $('nb-people'); if (np) { np.textContent = rq; np.hidden = !rq; }
+    var mn = $('more-n'); if (mn) mn.hidden = !rq;
+    var bn = unreadBell(), bb = $('bell-n'); if (bb) { bb.textContent = bn > 9 ? '9+' : bn; bb.hidden = !bn; }
   }
   function go(v, keepScroll) {
-    if (!navVisible(v)) v = 'home';
+    if (v === 'home') v = 'today';
+    if (!navVisible(v) || (VIEWS.indexOf(v) < 0 && !isPerson(v))) v = 'today';
     var changed = v !== view;
     view = v;
     try { history.replaceState(null, '', '#' + v); } catch (e) {}
@@ -899,7 +994,8 @@ details.up summary { padding: 12px var(--pad); cursor: pointer; color: var(--acc
   function render() {
     if (app.hidden) return;
     markNav();
-    if (view === 'home') vHome(); else if (view === 'cal') vCal(); else if (view === 'tasks') vTasks(); else if (view === 'draw') vDraw();
+    if (view === 'today') vToday(); else if (view === 'cal') vCal(); else if (view === 'tasks') vTasks(); else if (view === 'draw') vDraw();
+    else if (view === 'lists') vLists(); else if (view === 'people') vPeople();
     else if (view === 'me') vMe(); else if (view === 'admin') renderAdmin(); else vPerson(view);
     chatAttachList();
   }
@@ -921,20 +1017,33 @@ details.up summary { padding: 12px var(--pad); cursor: pointer; color: var(--acc
     try { if (lastFocus && lastFocus.isConnected) lastFocus.focus(); } catch (e) {}
   }
   function modalOpen() { return !$('modal').hidden; }
-  function confirmDel(text, fn) {
-    var c = openModal('Удалить?', '<p>' + esc(text) + '</p><div class="mform"><div class="btns"><button type="button" class="btn" data-close-modal>Отмена</button><button type="button" class="btn danger" id="cd-yes">Удалить</button></div></div>');
+  function confirmDel(text, fn, title, yes) {
+    openModal(title || 'Удалить?', '<p>' + esc(text) + '</p><div class="mform"><div class="btns"><button type="button" class="btn" data-close-modal>Отмена</button><button type="button" class="btn danger" id="cd-yes">' + esc(yes || 'Удалить') + '</button></div></div>');
     $('cd-yes').addEventListener('click', function () { closeModal(); fn(); });
   }
   function openSheet() {
     var h = '';
-    members().map(function (w) { return [w, NAMES[w], 'user']; }).concat([['me', 'Кабинет', 'cog']]).concat(state.me === 'maxim' ? [['admin', 'Админ', 'shield']] : []).forEach(function (x) {
-      h += '<button type="button" class="nav-i" data-go="' + x[0] + '"' + (view === x[0] ? ' aria-current="page"' : '') + '>' + ic(x[2]) + '<span>' + x[1] + '</span></button>';
+    [['people', 'Люди', 'users'], ['lists', 'Списки', 'list'], ['me', 'Кабинет', 'cog']].concat(state.me === 'maxim' ? [['admin', 'Админ', 'shield']] : []).forEach(function (x) {
+      h += '<button type="button" class="nav-i" data-go="' + x[0] + '"' + (view === x[0] ? ' aria-current="page"' : '') + '>' + ic(x[2]) + '<span>' + x[1] + '</span>' + (x[0] === 'people' && incoming().length ? '<span class="nb">' + incoming().length + '</span>' : '') + '</button>';
     });
     h += '<button type="button" class="nav-i" data-logout>' + ic('out') + '<span>Выйти</span></button>';
     $('sheet-card').innerHTML = h; $('sheet').hidden = false;
   }
   function closeSheet() { $('sheet').hidden = true; }
 
+  /* ----- жест: листать основные разделы свайпом, смахнуть задачу влево, чтобы отметить ----- */
+  var tx0 = 0, ty0 = 0, tt0 = 0;
+  document.addEventListener('touchstart', function (e) { if (e.touches.length !== 1) return; tx0 = e.touches[0].clientX; ty0 = e.touches[0].clientY; tt0 = Date.now(); }, { passive: true });
+  document.addEventListener('touchend', function (e) {
+    if (app.hidden || modalOpen() || !$('sheet').hidden || !e.changedTouches.length) return;
+    var t = e.changedTouches[0], dx = t.clientX - tx0, dy = t.clientY - ty0, el = e.target;
+    if (Date.now() - tt0 > 650 || Math.abs(dx) < 84 || Math.abs(dx) < Math.abs(dy) * 1.8) return;
+    if (!el.closest || el.closest('input,select,textarea,.board,.mgrid,iframe,.dock,.modal,[data-noswipe]')) return;
+    var row = el.closest('[data-swipe]');
+    if (row && dx < 0) { toggleTask(row.getAttribute('data-swipe')); return; }
+    var i = MAIN.indexOf(view); if (i < 0) return;
+    go(MAIN[Math.max(0, Math.min(MAIN.length - 1, i + (dx < 0 ? 1 : -1)))]);
+  }, { passive: true });
   /* ----- общие кусочки интерфейса ----- */
   function empty(icon, text, btn) { return '<div class="empty">' + ic(icon) + '<p>' + text + '</p>' + (btn || '') + '</div>'; }
   function today() { return moscowNow().date; }
@@ -946,30 +1055,56 @@ details.up summary { padding: 12px var(--pad); cursor: pointer; color: var(--acc
   }
   function prioFlag(it) { return it.prio === 'high' ? '<span class="fl high">Высокий</span>' : it.prio === 'low' ? '<span class="fl low">Низкий</span>' : ''; }
   function stBadge(it) { return it.status === 'todo' ? '' : '<span class="badge ' + it.status + '">' + STATUS_N[it.status] + '</span>'; }
-  function cmCount(it) { var n = (state.comments[it.id] || []).length; return n ? '<span class="badge">' + ic('chat', true) + n + '</span>' : ''; }
+  function accBadge(it) {
+    if (it.kind !== 'task') return '';
+    if (it.accept === 'new') return '<span class="badge review">Ждёт принятия</span>';
+    if (it.accept === 'declined') return '<span class="badge no">Отклонена</span>';
+    return '';
+  }
+  function lockBadge(it) { return it.access === 'me' ? '<span class="badge">' + ic('lock', true) + 'Только мне</span>' : ''; }
+  function cmCountOf(map, id) { var n = (map[id] || []).length; return n ? '<span class="badge">' + ic('chat', true) + n + '</span>' : ''; }
+  function cmCount(it) { return cmCountOf(state.comments, it.id); }
+  function checkBadge(it) {
+    var c = it.check || []; if (!c.length) return '';
+    var d = c.filter(function (x) { return x.d; }).length;
+    return '<span class="badge' + (d === c.length ? ' done' : '') + '">' + d + '/' + c.length + ' · ' + Math.round(d / c.length * 100) + '%</span>';
+  }
   function taskRow(it, showOwner) {
-    var can = canEdit(it);
-    return '<div class="trow' + (it.status === 'done' ? ' done' : '') + '" data-task="' + it.id + '" role="button" tabindex="0">' +
+    var can = canEdit(it) && it.accept !== 'declined';
+    return '<div class="trow' + (it.status === 'done' ? ' done' : '') + '" data-task="' + it.id + '" data-swipe="' + it.id + '" role="button" tabindex="0">' +
       '<button type="button" class="chk" data-tgl="' + it.id + '" aria-pressed="' + (it.status === 'done') + '" aria-label="Отметить выполненной"' + (can ? '' : ' disabled') + '>' + ic('check') + '</button>' +
-      '<div><div class="ttl">' + esc(it.text) + '</div><div class="tmeta">' + stBadge(it) + dueBadge(it) + prioFlag(it) + cmCount(it) + '</div></div>' +
+      '<div><div class="ttl">' + esc(it.text) + '</div><div class="tmeta">' + (it.kind === 'plan' ? '<span class="badge">' + ic('clock', true) + esc(shortDate(it.date)) + ' ' + esc(it.time) + '</span>' : '') +
+      accBadge(it) + stBadge(it) + dueBadge(it) + prioFlag(it) + checkBadge(it) + cmCount(it) + lockBadge(it) + '</div></div>' +
       (showOwner ? av(it.owner, 's') : '<span></span>') + '</div>';
   }
+  // Итог по событию: все «да» (или большинство, если автор выбрал такое правило).
+  function evTally(e) {
+    var inv = (e.guests.length ? e.guests.concat([e.by]) : Object.keys(e.votes).concat([e.by, state.me])).filter(function (x, i, a) { return a.indexOf(x) === i && !OFF[x]; });
+    var yes = 0, no = 0; inv.forEach(function (w) { if (e.votes[w] === 'yes') yes++; else if (e.votes[w] === 'no') no++; });
+    return { inv: inv, yes: yes, no: no, wait: inv.length - yes - no };
+  }
   function voteBadge(e) {
-    var v = e.votes, mem = members();
-    if (mem.some(function (w) { return v[w] === 'no'; })) return '<span class="badge no">Отказ</span>';
-    if (mem.every(function (w) { return v[w] === 'yes'; })) return '<span class="badge yes">Согласовано</span>';
+    var t = evTally(e);
+    if (e.rule === 'majority') {
+      if (t.wait === 0 || t.yes > t.inv.length / 2 || t.no >= t.inv.length / 2) return t.yes > t.no ? '<span class="badge yes">Согласовано</span>' : '<span class="badge no">Отказ</span>';
+      return '<span class="badge review">Ждёт ответа</span>';
+    }
+    if (t.no) return '<span class="badge no">Отказ</span>';
+    if (!t.wait) return '<span class="badge yes">Согласовано</span>';
     return '<span class="badge review">Ждёт ответа</span>';
   }
   function dateChip(iso) { var p = iso.split('-'); return '<div class="datechip"><b>' + parseInt(p[2], 10) + '</b><small>' + MON_S[parseInt(p[1], 10) - 1] + '</small></div>'; }
   function eventRow(e) {
     var c = CATS[e.cat] || CATS.personal;
     return '<div class="erow" data-ev="' + e.id + '" role="button" tabindex="0">' + dateChip(e.date) +
-      '<div><div class="ttl">' + esc(e.title) + '</div><div class="tmeta"><span class="cdot" style="--c:' + c.c + '"></span><span>' + c.n + '</span><span class="mono">' + esc(e.time) + '</span><span>' + esc(dayLabel(e.date)) + '</span></div></div>' + voteBadge(e) + '</div>';
+      '<div><div class="ttl">' + esc(e.title) + '</div><div class="tmeta"><span class="cdot" style="--c:' + c.c + '"></span><span>' + c.n + '</span><span class="mono">' + esc(e.time) + (e.dur ? '–' + addMin(e.time, e.dur) : '') + '</span><span>' + esc(dayLabel(e.date)) + '</span>' +
+      (e.place ? '<span>' + esc(e.place) + '</span>' : '') + cmCountOf(state.ecomments, e.id) + '</div></div>' + voteBadge(e) + '</div>';
   }
   function planRow(it) {
     return '<div class="erow" data-task="' + it.id + '" role="button" tabindex="0">' + dateChip(it.date) +
-      '<div><div class="ttl">' + esc(it.text) + '</div><div class="tmeta"><span class="cdot" style="--c:' + CATS.plan.c + '"></span><span>План · ' + esc(NAMES[it.owner]) + '</span><span class="mono">' + esc(it.time) + '</span><span>' + esc(dayLabel(it.date)) + '</span></div></div><span class="badge">план</span></div>';
+      '<div><div class="ttl">' + esc(it.text) + '</div><div class="tmeta"><span class="cdot" style="--c:' + CATS.plan.c + '"></span><span>План · ' + esc(NAMES[it.owner]) + '</span><span class="mono">' + esc(it.time) + '</span><span>' + esc(dayLabel(it.date)) + '</span>' + lockBadge(it) + '</div></div><span class="badge">план</span></div>';
   }
+  function addMin(hhmm, m) { var x = (toMin(hhmm) + m) % 1440; return ('0' + Math.floor(x / 60)).slice(-2) + ':' + ('0' + (x % 60)).slice(-2); }
   function openTasksOf(who) {
     return state.items.filter(function (i) { return i.kind === 'task' && i.owner === who && i.status !== 'done'; });
   }
@@ -980,164 +1115,298 @@ details.up summary { padding: 12px var(--pad); cursor: pointer; color: var(--acc
     if (pr[a.prio] !== pr[b.prio]) return pr[a.prio] - pr[b.prio];
     return a.created < b.created ? -1 : a.created > b.created ? 1 : 0;
   }
+  function isArchived(it) { return it.status === 'done' && !!it.doneAt && Date.now() - new Date(it.doneAt).getTime() > 30 * 86400000; }
   function upcoming() {
     var t = today(), out = [];
-    state.events.forEach(function (e) { if (e.date >= t) out.push({ date: e.date, time: e.time, html: eventRow(e) }); });
-    state.items.forEach(function (i) { if (i.kind === 'plan' && !i.done && i.date >= t) out.push({ date: i.date, time: i.time, html: planRow(i) }); });
+    state.events.forEach(function (e) { if (e.date >= t && e.votes[state.me] !== 'no') out.push({ date: e.date, time: e.time, html: eventRow(e) }); });
+    state.items.forEach(function (i) { if (i.kind === 'plan' && !i.done && i.date >= t && (i.owner === state.me || i.by === state.me)) out.push({ date: i.date, time: i.time, html: planRow(i) }); });
     out.sort(function (a, b) { return a.date < b.date ? -1 : a.date > b.date ? 1 : a.time < b.time ? -1 : a.time > b.time ? 1 : 0; });
     return out;
   }
   function newBtn(type, label, extra) { return '<button type="button" class="btn primary" data-new="' + type + '"' + (extra || '') + '>' + ic('plus') + label + '</button>'; }
+  function opt(v, label, cur) { return '<option value="' + esc(v) + '"' + (v === cur ? ' selected' : '') + '>' + esc(label) + '</option>'; }
+  // Реакции «Принято / Сделаю / Не согласен» под записью.
+  var REACTS = [['ok', 'Принято'], ['doing', 'Сделаю'], ['no', 'Не согласен']];
+  function reactBar(kind, id) {
+    var m = state.react[kind + ':' + id] || {}, mine = m[state.me];
+    return '<div class="reacts" role="group" aria-label="Реакция">' + REACTS.map(function (r) {
+      var who = Object.keys(m).filter(function (w) { return m[w] === r[0]; });
+      return '<button type="button" class="rbtn" data-react="' + kind + ':' + id + ':' + r[0] + '" aria-pressed="' + (mine === r[0]) + '" title="' + esc(who.map(nameOf).join(', ')) + '">' + r[1] + (who.length ? ' · ' + who.length : '') + '</button>';
+    }).join('') + '</div>';
+  }
+  function setReact(kind, id, r) {
+    var m = state.react[kind + ':' + id] || {};
+    return act(function () { return rpc('vx_react', { p_code: CODE, p_kind: kind, p_target: id, p_react: m[state.me] === r ? '' : r }); }, '', true);
+  }
 
-  /* ----- главная ----- */
-  function vHome() {
+  /* ----- комментарии: к задаче, событию и версии чертежа ----- */
+  var CM_MAP = { item: 'comments', event: 'ecomments', file: 'fcomments' };
+  function commentsHtml(kind, id) {
+    var list = state[CM_MAP[kind]][id] || [];
+    return (list.length ? list.map(function (c) {
+      var mineC = c.by === state.me, fresh = mineC && Date.now() - new Date(c.at).getTime() < 15 * 60000;
+      return '<div class="cm" data-cm="' + c.id + '">' + av(c.by, 's') + '<div class="b"><small>' + esc(NAMES[c.by]) + ' · ' + esc(fmtDt(c.at)) + (c.edited ? ' · изменён' : '') + '</small>' + mentionHtml(c.body) + '</div>' +
+        (fresh ? '<button type="button" class="x e" data-cedit="' + c.id + '" aria-label="Изменить комментарий">' + ic('edit', true) + '</button>' : '') +
+        (mineC || state.me === 'maxim' || canDelCm(kind, id) ? '<button type="button" class="x" data-cdel="' + c.id + '" aria-label="Удалить комментарий">' + ic('x', true) + '</button>' : '') + '</div>';
+    }).join('') : '<p class="when">Комментариев пока нет.</p>') +
+      '<form class="edit-form" id="cm-form" style="margin-top:8px"><input name="b" maxlength="500" placeholder="Комментарий. @имя, чтобы позвать человека" aria-label="Комментарий" autocomplete="off"><button class="btn small primary" type="submit">Отправить</button></form>';
+  }
+  function canDelCm(kind, id) {
+    if (kind === 'item') { var it = itemById(id); return !!it && it.by === state.me; }
+    if (kind === 'event') { var e = eventById(id); return !!e && e.by === state.me; }
+    return false;
+  }
+  function bindComments(kind, id, boxId, after) {
+    var box = $(boxId); if (!box) return;
+    box.innerHTML = commentsHtml(kind, id);
+    function again() { if ($(boxId)) bindComments(kind, id, boxId, after); render(); if (after) after(); }
+    $('cm-form').addEventListener('submit', async function (e) {
+      e.preventDefault();
+      var b = this.elements.b.value.trim(); if (!b) return;
+      this.elements.b.value = '';
+      var a = { p_code: CODE, p_body: b }; a[kind === 'item' ? 'p_item' : kind === 'event' ? 'p_event' : 'p_file'] = id;
+      await act(function () { return rpc('vx_comment_add', a); }, 'Комментарий добавлен', true);
+      again();
+    });
+    box.onclick = async function (e) {
+      var d = e.target.closest('[data-cdel]'), ed = e.target.closest('[data-cedit]');
+      if (d) { await act(function () { return rpc('vx_comment_del', { p_code: CODE, p_id: d.getAttribute('data-cdel') }); }, '', true); again(); return; }
+      if (ed) {
+        var cid = ed.getAttribute('data-cedit'), cur = (state[CM_MAP[kind]][id] || []).filter(function (c) { return c.id === cid; })[0];
+        var row = ed.closest('.cm'); if (!cur || !row) return;
+        row.querySelector('.b').innerHTML = '<form class="edit-form" data-cm-edit><input name="b" maxlength="500" value="' + esc(cur.body) + '"><button class="btn small primary" type="submit">Сохранить</button></form>';
+        row.querySelector('[data-cm-edit]').addEventListener('submit', async function (ev) {
+          ev.preventDefault(); var v = this.elements.b.value.trim(); if (!v) return;
+          await act(function () { return rpc('vx_comment_edit', { p_code: CODE, p_id: cid, p_body: v }); }, 'Изменено', true); again();
+        });
+      }
+    };
+  }
+  /* ----- Сегодня: одна лента дня вместо четырёх карточек ----- */
+  function pairStart(p) { return PAIR_TIMES[p] ? PAIR_TIMES[p][0] : '08:30'; }
+  function dayFeed(t) {
+    var me = state.me, out = [];
+    state.schedule.forEach(function (r) { if (r.owner === me && r.date === t) out.push({ time: pairStart(r.pair), html: '<div class="frow"><span class="tm">' + pairStart(r.pair) + '</span><span class="cdot" style="--c:' + CATS.pair.c + '"></span><div><div class="ttl">' + r.pair + '-я пара · ' + esc(r.subject) + '</div><div class="tmeta"><span>' + PAIR_TIMES[r.pair][0] + '–' + PAIR_TIMES[r.pair][1] + '</span>' + (r.room ? '<span>' + esc(r.room) + '</span>' : '') + '</div></div></div>' }); });
+    state.events.forEach(function (e) {
+      if (e.date === t && e.votes[me] !== 'no') out.push({ time: e.time, html: '<div class="frow" data-ev="' + e.id + '" role="button" tabindex="0"><span class="tm">' + e.time + '</span><span class="cdot" style="--c:' + (CATS[e.cat] || CATS.personal).c + '"></span><div><div class="ttl">' + esc(e.title) + '</div><div class="tmeta"><span>Событие</span>' + (e.place ? '<span>' + esc(e.place) + '</span>' : '') + '</div></div>' + voteBadge(e) + '</div>' });
+    });
+    state.items.forEach(function (i) {
+      if (i.kind === 'plan' && !i.done && i.date === t && (i.owner === me || i.by === me)) out.push({ time: i.time, html: '<div class="frow" data-task="' + i.id + '" data-swipe="' + i.id + '" role="button" tabindex="0"><span class="tm">' + i.time + '</span><span class="cdot" style="--c:' + CATS.plan.c + '"></span><div><div class="ttl">' + esc(i.text) + '</div><div class="tmeta"><span>План' + (i.owner !== me ? ' · ' + esc(NAMES[i.owner]) : '') + '</span></div></div></div>' });
+    });
+    state.items.forEach(function (i) {
+      if (i.kind === 'task' && i.owner === me && i.status !== 'done' && i.accept !== 'declined' && i.due && i.due <= t) out.push({ time: '', html: taskRow(i, false) });
+    });
+    ['sapr', 'arch'].forEach(function (k) {
+      groupDrawings(state.drawings[k]).forEach(function (g) { var v = g[0]; if (v.due === t && v.status !== 'done') out.push({ time: '', html: '<div class="frow" data-open-draw="' + esc(v.title) + '" role="button" tabindex="0"><span class="tm">срок</span><span class="cdot" style="--c:' + CATS.draw.c + '"></span><div><div class="ttl">Сдача чертежа: ' + esc(v.title) + '</div><div class="tmeta"><span>' + esc(DRAW_ST[v.status]) + '</span></div></div></div>' }); });
+    });
+    out.sort(function (a, b) { return a.time < b.time ? -1 : a.time > b.time ? 1 : 0; });
+    return out;
+  }
+  function waitingHtml() {
+    var me = state.me, t = today(), h = '', n = 0;
+    incoming().forEach(function (u) {
+      n++; h += '<div class="wrow">' + av(u.name, 's') + '<div class="wt"><div class="ttl">' + esc(u.title) + ' хочет добавить вас в друзья</div></div><span class="acts-row"><button type="button" class="btn small primary" data-fr-ok="' + esc(u.name) + '">Принять</button><button type="button" class="btn small" data-fr-no="' + esc(u.name) + '">Отклонить</button></span></div>';
+    });
+    state.items.filter(function (i) { return i.kind === 'task' && i.owner === me && i.accept === 'new'; }).forEach(function (i) {
+      n++; h += '<div class="wrow">' + av(i.by, 's') + '<div class="wt" data-task="' + i.id + '" role="button" tabindex="0"><div class="ttl">Новая задача: ' + esc(i.text) + '</div><div class="tmeta"><span>от ' + esc(NAMES[i.by]) + '</span>' + dueBadge(i) + '</div></div><span class="acts-row"><button type="button" class="btn small primary" data-acc="' + i.id + '">Принять</button><button type="button" class="btn small" data-dec="' + i.id + '">Отклонить</button></span></div>';
+    });
+    state.events.filter(function (e) { return e.by !== me && !e.votes[me] && e.date >= t; }).forEach(function (e) {
+      n++; h += '<div class="wrow">' + av(e.by, 's') + '<div class="wt" data-ev="' + e.id + '" role="button" tabindex="0"><div class="ttl">' + esc(e.title) + '</div><div class="tmeta"><span>' + esc(dayLabel(e.date)) + ' ' + esc(e.time) + ' · от ' + esc(NAMES[e.by]) + '</span></div></div><span class="acts-row"><button type="button" class="btn small primary" data-vote="yes" data-id="' + e.id + '">' + (FEM[me] ? 'Согласна' : 'Согласен') + '</button><button type="button" class="btn small" data-vote="no" data-id="' + e.id + '">Отказаться</button></span></div>';
+    });
+    return n ? '<section class="card"><header><h2>Ждут моего ответа · ' + n + '</h2></header>' + h + '</section>' : '';
+  }
+  function vToday() {
     var now = moscowNow(), t = now.date, hr = Math.floor(now.minutes / 60), me = state.me;
     var greet = hr < 5 ? 'Доброй ночи' : hr < 12 ? 'Доброе утро' : hr < 18 ? 'Добрый день' : 'Добрый вечер';
-    var mine = openTasksOf(me);
+    var mine = openTasksOf(me).filter(function (i) { return i.accept !== 'declined'; });
     var late = mine.filter(isLate), dueToday = mine.filter(function (i) { return i.due === t; });
-    var focus = mine.filter(function (i) { return isLate(i) || i.due === t || i.status === 'doing'; }).sort(sortTasks);
-    var weekEnd = addDays(t, 7), soon = upcoming();
-    var weekN = soon.filter(function (x) { return x.date <= weekEnd; }).length;
-    var h = '<div class="row"><div><h1>' + greet + ', ' + esc(NAMES[me]) + '</h1><p class="lead">' + esc(DAYN[dow(t)]) + ', ' + longDate(t) + '</p></div>' + newBtn('task', 'Новая задача') + '</div>';
+    var h = '<div class="row"><div><h1>' + greet + ', ' + esc(NAMES[me]) + '</h1><p class="lead">' + esc(DAYN[dow(t)]) + ', ' + longDate(t) + '</p></div>' + newBtn('task', 'Новая запись') + '</div>';
+    if (state.notice && state.notice.body) h += '<div class="banner notice">' + ic('bell', true) + '<span>' + esc(state.notice.body) + '</span></div>';
     h += '<div class="kpis"><div class="kpi"><span>В работе у меня</span><b>' + mine.length + '</b></div><div class="kpi"><span>Срок сегодня</span><b>' + dueToday.length + '</b></div>' +
       '<div class="kpi' + (late.length ? ' bad' : '') + '"><span>Просрочено</span><b>' + late.length + '</b></div></div>';
-    h += '<div class="grid2"><section class="card"><header><h2>Задачи на сегодня</h2><button type="button" class="link" data-go="tasks">Все задачи</button></header>';
-    if (focus.length) h += focus.slice(0, 6).map(function (i) { return taskRow(i, false); }).join('');
-    else if (mine.length) h += empty('check', 'На сегодня срочного нет. Всего открытых задач: ' + mine.length + '.', '<button type="button" class="btn small" data-go="tasks">Открыть задачи</button>');
-    else h += empty('check', 'Открытых задач нет. Можно отдохнуть.', '<button type="button" class="btn small primary" data-new="task">Создать задачу</button>');
-    h += '</section><section class="card"><header><h2>Ближайшие события</h2><button type="button" class="link" data-go="cal">Календарь</button></header>';
-    if (soon.length) h += soon.slice(0, 5).map(function (x) { return x.html; }).join('');
-    else h += empty('cal', 'Ничего не запланировано.', '<button type="button" class="btn small primary" data-new="event">Предложить событие</button>');
+    h += waitingHtml();
+    var feed = dayFeed(t);
+    h += '<section class="card"><header><h2>Лента дня</h2><button type="button" class="link" data-go="cal">Календарь</button></header>';
+    if (feed.length) h += feed.map(function (x) { return x.html; }).join('');
+    else if (!friendNames().length && !state.items.length && !state.events.length) h += empty('users', 'Друзей ещё нет. Найди людей, чтобы делиться задачами и планами.', '<button type="button" class="btn small primary" data-go="people" data-sub="find">Найти друзей</button>');
+    else h += empty('cal', 'На сегодня ничего нет. Можно начать с чего-то нового.', '<button type="button" class="btn small primary" data-new="task">Создать первую запись</button>');
+    h += '</section><div class="grid2"><section class="card"><header><h2>Ближайшие дела</h2><button type="button" class="link" data-go="tasks">Все задачи</button></header>';
+    var soon = upcoming().filter(function (x) { return x.date > t; }).slice(0, 4);
+    var next = mine.filter(function (i) { return !isLate(i) && i.due !== t; }).sort(sortTasks).slice(0, 3);
+    if (soon.length || next.length) h += soon.map(function (x) { return x.html; }).join('') + next.map(function (i) { return taskRow(i, false); }).join('');
+    else h += empty('check', 'Впереди пусто.');
     h += '</section><section class="card"><header><h2>Последние изменения</h2></header>';
     var rec = (state.recent || []).filter(function (r) { return r.who && LOG_ACTIONS[r.action] && r.action.indexOf('tg_') !== 0; }).slice(0, 6);
     if (rec.length) h += rec.map(function (r) {
       return '<div class="feed">' + av(r.who, 's') + '<div><div>' + esc(LOG_ACTIONS[r.action]) + '</div>' + (r.detail ? '<div class="d">' + esc(r.detail) + '</div>' : '') + '</div><time>' + esc(ago(r.at)) + '</time></div>';
     }).join('');
     else h += empty('history', 'Пока изменений нет.');
-    h += '</section><section class="card"><header><h2>Быстрые действия</h2></header><div class="quick">' +
+    h += '</section></div><section class="card"><header><h2>Быстрые действия</h2></header><div class="quick">' +
       '<button type="button" class="btn primary" data-new="task">' + ic('tasks') + 'Задача</button>' +
       '<button type="button" class="btn" data-new="event">' + ic('cal') + 'Событие</button>' +
       '<button type="button" class="btn" data-new="plan">' + ic('clock') + 'План по времени</button>' +
-      (me === 'maxim' ? '<button type="button" class="btn" data-go="draw">' + ic('upload') + 'Чертежи</button>' : '<button type="button" class="btn" data-go="draw">' + ic('draw') + 'Чертежи</button>') +
       '<button type="button" class="btn" data-chat-open>' + ic('chat') + 'Спросить Claude</button>' +
-      '<button type="button" class="btn" data-go="' + me + '">' + ic('user') + 'Моя страница</button></div></section></div>';
-    var td = state.schedule.filter(function (r) { return r.owner === me && r.date === t; }).sort(function (a, b) { return a.pair - b.pair; });
-    if (td.length) {
-      h += '<section class="card"><header><h2>Пары сегодня</h2><button type="button" class="link" data-go="' + me + '" data-sub="sched">Расписание</button></header>' + td.map(function (p) {
-        var tm = PAIR_TIMES[p.pair];
-        return '<div class="pair"><span class="n">' + p.pair + '</span><div><div class="s">' + esc(p.subject) + '</div><div class="tm">' + tm[0] + '–' + tm[1] + '</div></div>' + (p.room ? '<span class="room">' + esc(p.room) + '</span>' : '<span></span>') + '</div>';
-      }).join('') + '</section>';
-    }
+      '<button type="button" class="btn" data-go="people" data-sub="find">' + ic('users') + 'Найти друзей</button>' +
+      '<button type="button" class="btn" data-go="lists">' + ic('list') + 'Списки</button></div></section>';
     $('view').innerHTML = h;
   }
-
-  /* ----- задачи ----- */
-  var tf = { q: '', owner: 'all', prio: '', due: '', mode: 'list', done: false };
+  /* ----- задачи и планы: один раздел ----- */
+  var tf = { q: '', owner: 'all', type: 'all', prio: '', due: '', mode: 'list', done: false, arch: false, trash: false, saved: '' };
+  var SAVED = [['', 'Все'], ['late', 'Мои просроченные'], ['byme', 'Поставил я'], ['wait', 'Ждут принятия'], ['nodue', 'Без срока']];
   function filteredTasks() {
-    var t = today(), wk = addDays(t, 7), q = tf.q.trim().toLowerCase();
+    var t = today(), wk = addDays(t, 7), q = tf.q.trim().toLowerCase(), me = state.me;
     return state.items.filter(function (i) {
-      if (i.kind !== 'task') return false;
-      if (tf.owner !== 'all' && i.owner !== (tf.owner === 'me' ? state.me : tf.owner)) return false;
+      if (tf.type !== 'all' && i.kind !== tf.type) return false;
+      if (tf.owner !== 'all' && i.owner !== (tf.owner === 'me' ? me : tf.owner)) return false;
       if (tf.prio && i.prio !== tf.prio) return false;
       if (q && i.text.toLowerCase().indexOf(q) < 0) return false;
       if (tf.due === 'late' && !isLate(i)) return false;
-      if (tf.due === 'today' && i.due !== t) return false;
-      if (tf.due === 'week' && !(i.due && i.due >= t && i.due <= wk)) return false;
-      if (tf.due === 'none' && i.due) return false;
+      if (tf.due === 'today' && i.due !== t && i.date !== t) return false;
+      if (tf.due === 'week' && !(((i.due || i.date) >= t) && ((i.due || i.date) <= wk))) return false;
+      if (tf.due === 'none' && (i.due || i.date)) return false;
+      if (tf.saved === 'late' && !(i.owner === me && isLate(i))) return false;
+      if (tf.saved === 'byme' && !(i.by === me && i.owner !== me)) return false;
+      if (tf.saved === 'wait' && !(i.kind === 'task' && ((i.owner === me && i.accept === 'new') || (i.by === me && i.accept !== 'ok')))) return false;
+      if (tf.saved === 'nodue' && (i.due || i.date)) return false;
+      if (!tf.arch && isArchived(i)) return false;
       return true;
     }).sort(sortTasks);
   }
-  function opt(v, label, cur) { return '<option value="' + esc(v) + '"' + (v === cur ? ' selected' : '') + '>' + esc(label) + '</option>'; }
   function vTasks() {
-    var h = '<div class="row"><h1>Задачи</h1>' + newBtn('task', 'Новая задача') + '</div>' +
-      '<div class="tools"><input type="search" id="tf-q" placeholder="Поиск по задачам" aria-label="Поиск по задачам" value="' + esc(tf.q) + '">' +
-      '<select id="tf-owner" aria-label="Исполнитель">' + opt('all', 'Все', tf.owner) + opt('me', 'Мои', tf.owner) + members().map(function (w) { return opt(w, NAMES[w], tf.owner); }).join('') + '</select>' +
+    var h = '<div class="row"><h1>Задачи и планы</h1>' + newBtn('task', 'Новая запись') + '</div>' +
+      '<div class="sub" id="saved" role="group" aria-label="Сохранённые фильтры">' + SAVED.map(function (s) { return '<button type="button" data-saved="' + s[0] + '" aria-pressed="' + (tf.saved === s[0]) + '">' + s[1] + '</button>'; }).join('') + '</div>' +
+      '<div class="tools"><input type="search" id="tf-q" placeholder="Поиск по названию" aria-label="Поиск по задачам" value="' + esc(tf.q) + '">' +
+      '<select id="tf-owner" aria-label="Исполнитель">' + opt('all', 'Все', tf.owner) + opt('me', 'Мои', tf.owner) + members().filter(function (w) { return w !== state.me; }).map(function (w) { return opt(w, NAMES[w], tf.owner); }).join('') + '</select>' +
+      '<select id="tf-type" aria-label="Тип записи">' + opt('all', 'Задачи и планы', tf.type) + opt('task', 'Только задачи', tf.type) + opt('plan', 'Только планы', tf.type) + '</select>' +
       '<select id="tf-prio" aria-label="Приоритет">' + opt('', 'Любой приоритет', tf.prio) + opt('high', 'Высокий', tf.prio) + opt('mid', 'Средний', tf.prio) + opt('low', 'Низкий', tf.prio) + '</select>' +
       '<select id="tf-due" aria-label="Срок">' + opt('', 'Любой срок', tf.due) + opt('late', 'Просроченные', tf.due) + opt('today', 'Сегодня', tf.due) + opt('week', 'Ближайшие 7 дней', tf.due) + opt('none', 'Без срока', tf.due) + '</select>' +
-      '<div class="seg" role="group" aria-label="Вид"><button type="button" data-tmode="list" aria-pressed="' + (tf.mode === 'list') + '">Список</button><button type="button" data-tmode="board" aria-pressed="' + (tf.mode === 'board') + '">Доска</button></div></div>' +
+      '<div class="seg" role="group" aria-label="Вид"><button type="button" data-tmode="list" aria-pressed="' + (tf.mode === 'list') + '">Список</button><button type="button" data-tmode="board" aria-pressed="' + (tf.mode === 'board') + '">Доска</button><button type="button" data-tmode="days" aria-pressed="' + (tf.mode === 'days') + '">По дням</button></div></div>' +
       '<div id="tasks-body"></div>';
     $('view').innerHTML = h;
     $('tf-q').addEventListener('input', function () { tf.q = this.value; paintTasks(); });
-    ['owner', 'prio', 'due'].forEach(function (k) { $('tf-' + k).addEventListener('change', function () { tf[k] = this.value; paintTasks(); }); });
+    ['owner', 'type', 'prio', 'due'].forEach(function (k) { $('tf-' + k).addEventListener('change', function () { tf[k] = this.value; paintTasks(); }); });
     paintTasks();
   }
   function paintTasks() {
     var box = $('tasks-body'); if (!box) return;
     var list = filteredTasks(), h = '';
+    var anyItems = state.items.length > 0;
     if (!list.length) {
-      box.innerHTML = '<section class="card">' + (state.items.some(function (i) { return i.kind === 'task'; }) ? empty('search', 'Ничего не найдено. Измени фильтры.', '<button type="button" class="btn small" data-tclear>Сбросить фильтры</button>') : empty('tasks', 'Задач пока нет.', '<button type="button" class="btn small primary" data-new="task">Создать первую</button>')) + '</section>';
-      return;
-    }
-    if (tf.mode === 'board') {
+      h = '<section class="card">' + (anyItems ? empty('search', 'Ничего не найдено. Измени фильтры.', '<button type="button" class="btn small" data-tclear>Сбросить фильтры</button>') : empty('tasks', 'Здесь пока пусто.', '<button type="button" class="btn small primary" data-new="task">Создать первую</button>')) + '</section>';
+    } else if (tf.mode === 'board') {
       h = '<div class="board">' + STATUS.map(function (s) {
         var col = list.filter(function (i) { return i.status === s[0]; });
         if (s[0] === 'done') col = col.slice(-12);
         return '<section class="col"><h3>' + s[1] + ' <span>' + col.length + '</span></h3><div class="col-b" data-drop="' + s[0] + '">' + (col.length ? col.map(function (i) {
-          var can = canEdit(i);
-          return '<div class="tcard" data-task="' + i.id + '" role="button" tabindex="0"' + (can ? ' draggable="true" data-drag="' + i.id + '"' : '') + '><div class="ttl">' + esc(i.text) + '</div><div class="tmeta">' + dueBadge(i) + prioFlag(i) + cmCount(i) + '</div>' +
+          var can = canEdit(i) && i.accept !== 'declined';
+          return '<div class="tcard" data-task="' + i.id + '" role="button" tabindex="0"' + (can ? ' draggable="true" data-drag="' + i.id + '"' : '') + '><div class="ttl">' + esc(i.text) + '</div><div class="tmeta">' + (i.kind === 'plan' ? '<span class="badge">' + esc(shortDate(i.date)) + ' ' + esc(i.time) + '</span>' : '') + accBadge(i) + dueBadge(i) + prioFlag(i) + checkBadge(i) + cmCount(i) + '</div>' +
             '<div class="foot">' + av(i.owner, 's') + (can ? '<select data-tst="' + i.id + '" aria-label="Статус">' + STATUS.map(function (x) { return opt(x[0], x[1], i.status); }).join('') + '</select>' : '') + '</div></div>';
         }).join('') : '<div class="when" style="padding:8px 4px">Пусто</div>') + '</div></section>';
       }).join('') + '</div>';
+    } else if (tf.mode === 'days') {
+      var by = {}, keys = [];
+      list.filter(function (i) { return i.status !== 'done'; }).forEach(function (i) { var k = i.kind === 'plan' ? i.date : (i.due || ''); if (!by[k]) { by[k] = []; keys.push(k); } by[k].push(i); });
+      keys.sort(function (a, b) { return a === '' ? 1 : b === '' ? -1 : a < b ? -1 : a > b ? 1 : 0; });
+      h = keys.length ? keys.map(function (k) {
+        return '<section class="card"><header><h2>' + (k ? esc(dayLabel(k)) + ' · ' + longDate(k) : 'Без срока') + ' · ' + by[k].length + '</h2></header>' + by[k].map(function (i) { return taskRow(i, true); }).join('') + '</section>';
+      }).join('') : '<section class="card">' + empty('check', 'Все записи выполнены.') + '</section>';
     } else {
-      var open = list.filter(function (i) { return i.status !== 'done'; }), done = list.filter(function (i) { return i.status === 'done'; });
+      var open = list.filter(function (i) { return i.status !== 'done'; }), done = list.filter(function (i) { return i.status === 'done' && !isArchived(i); });
       STATUS.slice(0, 3).forEach(function (s) {
         var col = open.filter(function (i) { return i.status === s[0]; });
         if (col.length) h += '<section class="card"><header><h2>' + s[1] + ' · ' + col.length + '</h2></header>' + col.map(function (i) { return taskRow(i, true); }).join('') + '</section>';
       });
-      if (!open.length) h += '<section class="card">' + empty('check', 'Все задачи выполнены.') + '</section>';
+      if (!open.length) h += '<section class="card">' + empty('check', 'Все записи выполнены.') + '</section>';
       if (done.length) {
         h += '<section class="card"><header><h2>Готово · ' + done.length + '</h2><button type="button" class="link" data-tdone>' + (tf.done ? 'Скрыть' : 'Показать') + '</button></header>' +
           (tf.done ? done.slice(-30).reverse().map(function (i) { return taskRow(i, true); }).join('') : '') + '</section>';
       }
     }
+    var arch = state.items.filter(isArchived);
+    h += '<div class="acts-row">' + (arch.length ? '<button type="button" class="btn small" data-tarch>' + (tf.arch ? 'Скрыть архив' : 'Архив: ' + arch.length + ' (старше 30 дней)') + '</button>' : '') +
+      (state.deleted.length ? '<button type="button" class="btn small" data-ttrash>Корзина: ' + state.deleted.length + '</button>' : '') + '</div>';
+    if (tf.trash && state.deleted.length) {
+      h += '<section class="card"><header><h2>Корзина (хранится 7 дней)</h2></header>' + state.deleted.map(function (d) {
+        return '<div class="mrow"><div class="mi"><div><strong>' + esc(d.text) + '</strong><br><span class="when">удалено ' + esc(ago(d.at)) + '</span></div></div><button type="button" class="btn small" data-restore="' + d.id + '">Восстановить</button></div>';
+      }).join('') + '</section>';
+    }
     box.innerHTML = h;
   }
   function setStatus(id, st) {
-    var it = itemById(id); if (!it || !canEdit(it) || it.status === st) return;
-    act(function () { return rpc('vx_task_update', { p_code: CODE, p_id: id, p_status: st }); }, st === 'done' ? 'Задача выполнена' : 'Статус: ' + STATUS_N[st]);
+    var it = itemById(id); if (!it || !canEdit(it) || it.status === st || it.accept === 'declined') return;
+    var review = st === 'done' && it.kind === 'task' && it.by !== it.owner && it.owner === state.me;
+    act(function () { return rpc('vx_task_update', { p_code: CODE, p_id: id, p_status: st }); }, review ? 'Отправлено автору на проверку' : st === 'done' ? 'Выполнено' : 'Статус: ' + STATUS_N[st]);
   }
   function toggleTask(id) { var it = itemById(id); if (it) setStatus(id, it.status === 'done' ? 'todo' : 'done'); }
-
   /* ----- календарь ----- */
-  var cal = { mode: 'month', date: '', sel: '', cats: { work: true, study: true, personal: true, other: true, plan: true, task: true } };
+  var cal = { mode: 'month', date: '', sel: '', cats: { work: true, study: true, personal: true, other: true, plan: true, task: true, pair: true, draw: true }, who: 'all', pick: {} };
+  function involved(e) { var s = [e.by].concat(e.guests || []); for (var k in e.votes) if (e.votes[k] === 'yes') s.push(k); return s; }
   function calEntries() {
     var out = [];
-    state.events.forEach(function (e) { out.push({ k: 'ev', id: e.id, date: e.date, time: e.time, title: e.title, cat: e.cat in CATS ? e.cat : 'personal' }); });
+    state.events.forEach(function (e) { out.push({ k: 'ev', id: e.id, date: e.date, time: e.time, end: e.dur ? addMin(e.time, e.dur) : '', title: e.title, cat: e.cat in CATS ? e.cat : 'personal', who: involved(e) }); });
     state.items.forEach(function (i) {
-      if (i.kind === 'plan' && i.date && !i.done) out.push({ k: 'task', id: i.id, date: i.date, time: i.time, title: i.text, cat: 'plan' });
-      else if (i.kind === 'task' && i.due && i.status !== 'done') out.push({ k: 'task', id: i.id, date: i.due, time: '', title: i.text, cat: 'task' });
+      if (i.accept === 'declined') return;
+      if (i.kind === 'plan' && i.date && !i.done) out.push({ k: 'task', id: i.id, date: i.date, time: i.time, end: '', title: i.text, cat: 'plan', who: [i.owner, i.by] });
+      else if (i.kind === 'task' && i.due && i.status !== 'done') out.push({ k: 'task', id: i.id, date: i.due, time: '', end: '', title: i.text, cat: 'task', who: [i.owner] });
     });
-    out = out.filter(function (x) { return cal.cats[x.cat]; });
+    state.schedule.forEach(function (r) { var tm = PAIR_TIMES[r.pair]; out.push({ k: 'pair', id: r.id, date: r.date, time: tm ? tm[0] : '', end: tm ? tm[1] : '', title: r.pair + '-я пара · ' + r.subject, cat: 'pair', who: [r.owner] }); });
+    ['sapr', 'arch'].forEach(function (p) { groupDrawings(state.drawings[p]).forEach(function (g) { var v = g[0]; if (v.due && v.status !== 'done') out.push({ k: 'draw', id: v.title, date: v.due, time: '', end: '', title: 'Сдача: ' + v.title, cat: 'draw', who: ['maxim'] }); }); });
+    var picked = cal.who === 'me' ? [state.me] : cal.who === 'pick' ? Object.keys(cal.pick).filter(function (k) { return cal.pick[k]; }) : null;
+    out = out.filter(function (x) {
+      if (!cal.cats[x.cat]) return false;
+      if (picked && !x.who.some(function (w) { return picked.indexOf(w) >= 0; })) return false;
+      return true;
+    });
     out.sort(function (a, b) { return a.date < b.date ? -1 : a.date > b.date ? 1 : a.time < b.time ? -1 : a.time > b.time ? 1 : a.title < b.title ? -1 : 1; });
     return out;
   }
+  function entAttr(x) { return x.k === 'ev' ? 'data-ev="' + esc(x.id) + '"' : x.k === 'task' ? 'data-task="' + esc(x.id) + '"' : x.k === 'draw' ? 'data-open-draw="' + esc(x.id) + '"' : 'data-pair="' + esc(x.id) + '"'; }
   function chipHtml(x) {
-    return '<button type="button" class="chip" style="--c:' + CATS[x.cat].c + '" data-' + x.k + '="' + x.id + '" title="' + esc(x.title) + '">' + (x.time ? '<em>' + esc(x.time) + '</em>' : '') + '<b>' + esc(x.title) + '</b></button>';
+    return '<button type="button" class="chip" style="--c:' + CATS[x.cat].c + '" ' + entAttr(x) + ' title="' + esc(x.title) + '">' + (x.time ? '<em>' + esc(x.time) + '</em>' : '') + '<b>' + esc(x.title) + '</b></button>';
   }
   function dcardHtml(x) {
     var meta = CATS[x.cat].n, badge = '';
-    if (x.k === 'ev') { var e = eventById(x.id); if (e) badge = voteBadge(e); meta += ' · предложил' + (e ? ge(e.by) : '') + ': ' + (e ? NAMES[e.by] : ''); }
-    else { var it = itemById(x.id); if (it) meta += ' · ' + NAMES[it.owner]; }
-    return '<div class="dcard" style="--c:' + CATS[x.cat].c + '" data-' + x.k + '="' + x.id + '" role="button" tabindex="0"><span class="tm">' + (x.time ? esc(x.time) : 'весь день') + '</span><div><h3>' + esc(x.title) + '</h3><div class="meta">' + esc(meta) + '</div></div>' + badge + '</div>';
+    if (x.k === 'ev') { var e = eventById(x.id); if (e) { badge = voteBadge(e); meta += ' · предложил' + ge(e.by) + ': ' + NAMES[e.by] + (e.place ? ' · ' + e.place : ''); } }
+    else if (x.k === 'task') { var it = itemById(x.id); if (it) meta += ' · ' + NAMES[it.owner]; }
+    else if (x.k === 'pair') meta += ' · ' + NAMES[x.who[0]];
+    return '<div class="dcard" style="--c:' + CATS[x.cat].c + '" ' + entAttr(x) + ' role="button" tabindex="0"><span class="tm">' + (x.time ? esc(x.time) + (x.end ? '–' + esc(x.end) : '') : 'весь день') + '</span><div><h3>' + esc(x.title) + '</h3><div class="meta">' + esc(meta) + '</div></div>' + badge + '</div>';
   }
   function calTitle() {
     var d = cal.date, p = d.split('-');
     if (cal.mode === 'month') return MONTHS_N[parseInt(p[1], 10) - 1] + ' ' + p[0];
     if (cal.mode === 'day') return DAYN[dow(d)] + ', ' + longDate(d);
-    var a = mondayOf(d), b = addDays(a, 6), ma = parseInt(a.slice(5, 7), 10), mb = parseInt(b.slice(5, 7), 10);
+    var a = mondayOf(d), b = addDays(a, cal.mode === 'agenda' ? 13 : 6), ma = parseInt(a.slice(5, 7), 10), mb = parseInt(b.slice(5, 7), 10);
     return parseInt(a.slice(8), 10) + (ma !== mb ? ' ' + MONTHS[ma - 1] : '') + '–' + parseInt(b.slice(8), 10) + ' ' + MONTHS[mb - 1];
   }
+  // Свободные окна у выбранных людей (с 9:00 до 21:00) на день.
+  function freeWindows(date, people) {
+    var busy = [];
+    calEntriesAll().forEach(function (x) {
+      if (x.date !== date || !x.time || !x.who.some(function (w) { return people.indexOf(w) >= 0; })) return;
+      var s = toMin(x.time), e = x.end ? toMin(x.end) : s + 60; busy.push([s, Math.max(e, s + 15)]);
+    });
+    busy.sort(function (a, b) { return a[0] - b[0]; });
+    var out = [], cur = 540, end = 1260;
+    busy.forEach(function (b) { if (b[0] - cur >= 60) out.push([cur, Math.min(b[0], end)]); cur = Math.max(cur, b[1]); });
+    if (end - cur >= 60) out.push([cur, end]);
+    return out.filter(function (w) { return w[1] - w[0] >= 60; });
+  }
+  function calEntriesAll() { var keep = { who: cal.who, cats: cal.cats }; cal.who = 'all'; cal.cats = { work: 1, study: 1, personal: 1, other: 1, plan: 1, task: 1, pair: 1, draw: 1 }; var r = calEntries(); cal.who = keep.who; cal.cats = keep.cats; return r; }
+  function mm(x) { return ('0' + Math.floor(x / 60)).slice(-2) + ':' + ('0' + (x % 60)).slice(-2); }
   function vCal() {
     var t = today();
     if (!cal.date) cal.date = t;
     if (!cal.sel) cal.sel = t;
     var all = calEntries(), by = {};
     all.forEach(function (x) { (by[x.date] = by[x.date] || []).push(x); });
+    var friends = friendNames();
     var h = '<div class="row"><h1>Календарь</h1>' + newBtn('event', 'Создать', ' data-date="' + esc(cal.mode === 'month' ? cal.sel : cal.date) + '"') + '</div>' +
       '<div class="cal-top"><div class="acts-row"><button type="button" class="ibtn" data-cal-nav="-1" aria-label="Назад">' + ic('left') + '</button><button type="button" class="ibtn" data-cal-nav="1" aria-label="Вперёд">' + ic('right') + '</button>' +
       '<button type="button" class="btn" data-cal-today>Сегодня</button></div><div class="cal-title" aria-live="polite">' + esc(calTitle()) + '</div>' +
-      '<div class="seg" role="group" aria-label="Вид календаря">' + [['month', 'Месяц'], ['week', 'Неделя'], ['day', 'День']].map(function (m) { return '<button type="button" data-cal-mode="' + m[0] + '" aria-pressed="' + (cal.mode === m[0]) + '">' + m[1] + '</button>'; }).join('') + '</div></div>' +
-      '<div class="legend">' + Object.keys(CATS).map(function (k) { return '<button type="button" data-cal-cat="' + k + '" aria-pressed="' + !!cal.cats[k] + '"><span class="cdot" style="--c:' + CATS[k].c + '"></span>' + CATS[k].n + '</button>'; }).join('') + '</div>';
+      '<div class="seg" role="group" aria-label="Вид календаря">' + [['month', 'Месяц'], ['week', 'Неделя'], ['day', 'День'], ['agenda', 'Повестка']].map(function (m) { return '<button type="button" data-cal-mode="' + m[0] + '" aria-pressed="' + (cal.mode === m[0]) + '">' + m[1] + '</button>'; }).join('') + '</div></div>' +
+      '<div class="legend">' + Object.keys(CATS).map(function (k) { return '<button type="button" data-cal-cat="' + k + '" aria-pressed="' + !!cal.cats[k] + '"><span class="cdot" style="--c:' + CATS[k].c + '"></span>' + CATS[k].n + '</button>'; }).join('') + '</div>' +
+      '<div class="legend" aria-label="Чьи записи показывать"><button type="button" data-cal-who="all" aria-pressed="' + (cal.who === 'all') + '">Все</button><button type="button" data-cal-who="me" aria-pressed="' + (cal.who === 'me') + '">Только я</button>' +
+      friends.map(function (w) { return '<button type="button" data-cal-pick="' + esc(w) + '" aria-pressed="' + (cal.who === 'pick' && !!cal.pick[w]) + '">' + av(w, 's') + esc(NAMES[w]) + '</button>'; }).join('') + '</div>';
     if (cal.mode === 'month') {
       var p = cal.date.split('-'), first = p[0] + '-' + p[1] + '-01', start = mondayOf(first);
       h += '<div class="mgrid" role="grid">' + ['пн', 'вт', 'ср', 'чт', 'пт', 'сб', 'вс'].map(function (d) { return '<div class="mdow">' + d + '</div>'; }).join('');
@@ -1160,114 +1429,148 @@ details.up summary { padding: 12px var(--pad); cursor: pointer; color: var(--acc
           '<button type="button" class="wadd" data-new="event" data-date="' + wd + '" aria-label="Добавить на ' + esc(longDate(wd)) + '">+</button></div></section>';
       }
       h += '</div>';
+    } else if (cal.mode === 'agenda') {
+      var a0 = cal.date, any = false;
+      for (var n = 0; n < 14; n++) {
+        var ad = addDays(a0, n), ae = by[ad] || [];
+        if (!ae.length) continue; any = true;
+        h += '<section class="card"><div class="day-head">' + esc(dayLabel(ad)) + ' · ' + longDate(ad) + '</div>' + ae.map(dcardHtml).join('') + '</section>';
+      }
+      if (!any) h += '<section class="card">' + empty('cal', 'В ближайшие две недели ничего нет.', '<button type="button" class="btn small primary" data-new="event">Создать событие</button>') + '</section>';
     } else {
       var de = by[cal.date] || [];
-      h += '<section class="card">' + (de.length ? de.map(dcardHtml).join('') : empty('cal', 'На этот день ничего нет.')) + '</section>' +
-        '<div><button type="button" class="btn primary" data-new="event" data-date="' + cal.date + '">' + ic('plus') + 'Добавить на этот день</button></div>';
+      h += '<section class="card">' + (de.length ? de.map(dcardHtml).join('') : empty('cal', 'На этот день ничего нет.')) + '</section>';
+      var ppl = cal.who === 'pick' ? [state.me].concat(Object.keys(cal.pick).filter(function (k) { return cal.pick[k]; })) : cal.who === 'me' ? [] : [state.me].concat(friends);
+      if (ppl.length > 1) {
+        var fw = freeWindows(cal.date, ppl);
+        h += '<section class="card"><header><h2>Свободно всем выбранным</h2></header><div class="card-b">' + (fw.length ? fw.map(function (w) { return '<div><span class="badge yes mono">' + mm(w[0]) + '–' + mm(w[1]) + '</span></div>'; }).join('') : '<p class="when">Общего свободного часа с 9:00 до 21:00 нет.</p>') + '</div></section>';
+      }
+      h += '<div><button type="button" class="btn primary" data-new="event" data-date="' + cal.date + '">' + ic('plus') + 'Добавить на этот день</button></div>';
     }
     $('view').innerHTML = h;
   }
   function calMove(n) {
     if (cal.mode === 'month') cal.date = addMonths(cal.date, n);
-    else cal.date = addDays(cal.date, cal.mode === 'week' ? 7 * n : n);
+    else cal.date = addDays(cal.date, cal.mode === 'week' ? 7 * n : cal.mode === 'agenda' ? 14 * n : n);
     cal.sel = cal.mode === 'month' ? (cal.date.slice(0, 7) === today().slice(0, 7) ? today() : cal.date.slice(0, 8) + '01') : cal.date;
     vCal();
   }
-
-  /* ----- создание: задача, событие или план в одном окне ----- */
+  /* ----- создание: задача, событие, план, пара или чертёж в одном окне ----- */
   function ownerOpts(cur) {
-    return members().map(function (w) { return opt(w, w === state.me ? 'Мне (' + NAMES[w] + ')' : 'Для: ' + NAMES[w], cur); }).join('');
+    var me = state.me;
+    return [opt(me, 'Мне (' + NAMES[me] + ')', cur)].concat(friendNames().map(function (w) { return opt(w, 'Для: ' + NAMES[w], cur); })).join('');
+  }
+  var ACCESS = [['friends', 'Друзьям'], ['me', 'Только мне'], ['all', 'Всем участникам']];
+  function accessOpts(cur) { return ACCESS.map(function (a) { return opt(a[0], a[1], cur); }).join(''); }
+  // Что пересекается по времени у меня: события и планы на этот день.
+  function conflictsAt(date, time, dur) {
+    if (!date || !time) return [];
+    var s = toMin(time), e = s + (dur || 60), out = [];
+    function hit(t, d, title) { if (!t) return; var a = toMin(t), b = a + (d || 60); if (a < e && s < b) out.push(title); }
+    state.events.forEach(function (x) { if (x.date === date && x.votes[state.me] !== 'no') hit(x.time, x.dur, x.title); });
+    state.items.forEach(function (x) { if (x.kind === 'plan' && !x.done && x.date === date && x.owner === state.me) hit(x.time, 60, x.text); });
+    state.schedule.forEach(function (r) { if (r.owner === state.me && r.date === date && PAIR_TIMES[r.pair]) hit(PAIR_TIMES[r.pair][0], 90, r.pair + '-я пара'); });
+    return out;
   }
   function mCreate(type, date) {
     var me = state.me, given = !!date, d0 = date || today(), cur = type || 'task';
-    var tasks = openTasksOf(me).sort(sortTasks);
+    if (cur === 'draw') { go('draw'); return; }
+    var tasks = openTasksOf(me).sort(sortTasks), fr = friendNames();
     var h = '<form class="mform" id="cr-form" novalidate>' +
-      '<div class="wide"><div class="seg" role="group" aria-label="Что создаём">' + [['task', 'Задача'], ['event', 'Событие'], ['plan', 'План']].map(function (x) { return '<button type="button" data-ct="' + x[0] + '" aria-pressed="' + (cur === x[0]) + '">' + x[1] + '</button>'; }).join('') + '</div></div>' +
-      '<label class="fld wide">Название<input name="t" maxlength="200" required autocomplete="off"></label>' +
+      '<div class="wide"><div class="seg" role="group" aria-label="Что создаём">' + [['task', 'Задача'], ['event', 'Событие'], ['plan', 'План'], ['pair', 'Пара'], ['draw', 'Чертёж']].map(function (x) { return '<button type="button" data-ct="' + x[0] + '" aria-pressed="' + (cur === x[0]) + '">' + x[1] + '</button>'; }).join('') + '</div></div>' +
+      '<label class="fld wide" data-for="task event plan">Название<input name="t" maxlength="200" required autocomplete="off"></label>' +
       '<label class="fld" data-for="task plan">Кому<select name="o">' + ownerOpts(me) + '</select></label>' +
+      '<label class="fld" data-for="task plan">Кто видит<select name="a">' + accessOpts('friends') + '</select></label>' +
       '<label class="fld" data-for="task">Приоритет<select name="p">' + opt('low', 'Низкий', 'mid') + opt('mid', 'Средний', 'mid') + opt('high', 'Высокий', 'mid') + '</select></label>' +
       '<label class="fld" data-for="task">Срок (по желанию)<input name="due" type="date" value="' + (given ? esc(d0) : '') + '"></label>' +
-      '<label class="fld" data-for="event plan">Дата<input name="d" type="date" value="' + esc(d0) + '"></label>' +
+      '<label class="fld" data-for="event plan pair">Дата<input name="d" type="date" value="' + esc(d0) + '"></label>' +
       '<label class="fld" data-for="event plan">Время<input name="h" type="time" value="18:00"></label>' +
+      '<label class="fld" data-for="event">Длительность<select name="dur">' + [[0, 'Не указана'], [30, '30 минут'], [60, '1 час'], [90, '1,5 часа'], [120, '2 часа'], [180, '3 часа']].map(function (x) { return opt(String(x[0]), x[1], '60'); }).join('') + '</select></label>' +
+      '<label class="fld" data-for="event">Место<input name="pl" maxlength="80" autocomplete="off" placeholder="Например: кафе у метро"></label>' +
       '<label class="fld" data-for="event">Категория<select name="c">' + ['work', 'study', 'personal', 'other'].map(function (k) { return opt(k, CATS[k].n, 'personal'); }).join('') + '</select></label>' +
-      '<label class="fld" data-for="event">Связать с задачей<select name="k"><option value="">Без связи</option>' + tasks.map(function (i) { return opt(i.id, i.text.slice(0, 60), ''); }).join('') + '</select></label>' +
+      '<label class="fld" data-for="event">Решение<select name="r">' + opt('all', 'Нужно согласие всех', 'all') + opt('majority', 'Достаточно большинства', 'all') + '</select></label>' +
+      '<label class="fld wide" data-for="event">Связать с задачей<select name="k"><option value="">Без связи</option>' + tasks.map(function (i) { return opt(i.id, i.text.slice(0, 60), ''); }).join('') + '</select></label>' +
+      '<fieldset class="fld wide" data-for="event"><legend>Кого позвать (пусто — всех друзей)</legend><div class="legend">' + (fr.length ? fr.map(function (w) { return '<label class="chipck"><input type="checkbox" name="g" value="' + esc(w) + '">' + av(w, 's') + esc(NAMES[w]) + '</label>'; }).join('') : '<span class="when">Друзей пока нет.</span>') + '</div></fieldset>' +
+      '<label class="fld" data-for="pair">Номер пары<select name="n">' + [1, 2, 3, 4, 5, 6].map(function (n) { return opt(String(n), n + '-я пара (' + (PAIR_TIMES[n] ? PAIR_TIMES[n][0] : '') + ')', '1'); }).join('') + '</select></label>' +
+      '<label class="fld" data-for="pair">Предмет<input name="sj" maxlength="80" autocomplete="off"></label>' +
+      '<label class="fld wide" data-for="pair">Аудитория<input name="rm" maxlength="30" autocomplete="off"></label>' +
       '<p class="local-note wide" id="cr-note"></p><p class="form-msg wide" id="cr-msg" role="status"></p>' +
       '<div class="btns"><button type="button" class="btn" data-close-modal>Отмена</button><button type="submit" class="btn primary" id="cr-go">Создать</button></div></form>';
     openModal('Создать', h);
     var f = $('cr-form');
+    function guests() { return Array.prototype.map.call(f.querySelectorAll('input[name=g]:checked'), function (x) { return x.value; }); }
     function sync() {
       f.querySelectorAll('[data-for]').forEach(function (l) { l.hidden = l.getAttribute('data-for').split(' ').indexOf(cur) < 0; });
       f.querySelectorAll('[data-ct]').forEach(function (b) { b.setAttribute('aria-pressed', b.getAttribute('data-ct') === cur ? 'true' : 'false'); });
-      f.elements.d.required = f.elements.h.required = cur !== 'task';
       f.elements.t.placeholder = cur === 'task' ? 'Например: купить краску для принтера' : cur === 'event' ? 'Например: прогулка или кино' : 'Например: сдать курсовую';
-      $('cr-note').textContent = cur === 'event' ? 'Событие нужно согласовать: остальные участники ответят «Согласен» или «Отказаться».' : cur === 'plan' ? 'План по времени виден в календаре и в личном списке.' : '';
+      var note = cur === 'event' ? 'Событие нужно согласовать: приглашённые ответят «Согласен» или «Отказаться».' : cur === 'plan' ? 'План по времени виден в календаре и в личном списке.' : cur === 'pair' ? 'Пара попадёт в расписание и в календарь.' : '';
+      if (cur === 'event' || cur === 'plan') {
+        var c = conflictsAt(f.elements.d.value, f.elements.h.value, cur === 'event' ? parseInt(f.elements.dur.value, 10) || 60 : 60);
+        if (c.length) note = 'Пересекается по времени: ' + c.slice(0, 3).join(', ') + '. Можно создать всё равно.';
+      }
+      $('cr-note').textContent = note;
     }
     sync();
-    f.addEventListener('click', function (e) { var b = e.target.closest('[data-ct]'); if (b) { cur = b.getAttribute('data-ct'); sync(); } });
+    ['d', 'h', 'dur'].forEach(function (k) { f.elements[k].addEventListener('change', sync); });
+    f.addEventListener('click', function (e) { var b = e.target.closest('[data-ct]'); if (b) { cur = b.getAttribute('data-ct'); if (cur === 'draw') { closeModal(); go('draw'); return; } sync(); } });
     f.addEventListener('submit', async function (e) {
       e.preventDefault();
       var el = f.elements, t = el.t.value.trim(), msg = $('cr-msg');
-      if (!t) { msg.textContent = 'Напиши название.'; el.t.focus(); return; }
-      if (cur !== 'task' && (!el.d.value || !el.h.value)) { msg.textContent = 'Укажи дату и время.'; return; }
-      var fn, ok = cur === 'task' ? 'Задача создана' : cur === 'event' ? 'Событие предложено' : 'План добавлен';
-      if (cur === 'task') fn = function () { return rpc('vx_item_add', { p_code: CODE, p_kind: 'task', p_body: t, p_when: '', p_owner: el.o.value, p_day: null, p_time: null, p_priority: el.p.value, p_due: el.due.value || null }); };
-      else if (cur === 'plan') fn = function () { return rpc('vx_item_add', { p_code: CODE, p_kind: 'plan', p_body: t, p_when: '', p_owner: el.o.value, p_day: el.d.value, p_time: el.h.value, p_priority: 'mid', p_due: null }); };
-      else fn = function () { return rpc('vx_event_add', { p_code: CODE, p_title: t, p_date: el.d.value, p_time: el.h.value, p_cat: el.c.value, p_task: el.k.value || null }); };
+      if (cur !== 'pair' && !t) { msg.textContent = 'Напиши название.'; el.t.focus(); return; }
+      if ((cur === 'event' || cur === 'plan') && (!el.d.value || !el.h.value)) { msg.textContent = 'Укажи дату и время.'; return; }
+      if (cur === 'pair' && (!el.d.value || !el.sj.value.trim())) { msg.textContent = 'Укажи дату и предмет.'; return; }
+      var fn, ok = cur === 'task' ? (el.o.value !== me ? 'Задача отправлена: человек должен её принять' : 'Задача создана') : cur === 'event' ? 'Событие предложено' : cur === 'plan' ? 'План добавлен' : 'Пара добавлена';
+      if (cur === 'task') fn = function () { return rpc('vx_item_add', { p_code: CODE, p_kind: 'task', p_body: t, p_when: '', p_owner: el.o.value, p_day: null, p_time: null, p_priority: el.p.value, p_due: el.due.value || null, p_access: el.a.value }); };
+      else if (cur === 'plan') fn = function () { return rpc('vx_item_add', { p_code: CODE, p_kind: 'plan', p_body: t, p_when: '', p_owner: el.o.value, p_day: el.d.value, p_time: el.h.value, p_priority: 'mid', p_due: null, p_access: el.a.value }); };
+      else if (cur === 'pair') fn = function () { return rpc('vx_sched_add', { p_code: CODE, p_day: el.d.value, p_pair: parseInt(el.n.value, 10), p_subject: el.sj.value.trim(), p_room: el.rm.value.trim() }); };
+      else fn = function () { return rpc('vx_event_add', { p_code: CODE, p_title: t, p_date: el.d.value, p_time: el.h.value, p_cat: el.c.value, p_task: el.k.value || null, p_place: el.pl.value.trim(), p_dur: parseInt(el.dur.value, 10) || null, p_guests: guests(), p_rule: el.r.value }); };
       $('cr-go').disabled = true;
       var done = await act(fn, ok, true);
-      if (done) { closeModal(); if (cur === 'event' || cur === 'plan') { cal.sel = el.d.value; } render(); }
+      if (done) { closeModal(); if (cur !== 'task') cal.sel = el.d.value; render(); }
       else if ($('cr-go')) $('cr-go').disabled = false;
     });
   }
-
   /* ----- задача или план ----- */
-  function commentsHtml(it) {
-    var list = state.comments[it.id] || [];
-    return (list.length ? list.map(function (c) {
-      return '<div class="cm">' + av(c.by, 's') + '<div class="b"><small>' + esc(NAMES[c.by]) + ' · ' + esc(fmtDt(c.at)) + '</small>' + esc(c.body) + '</div>' +
-        (c.by === state.me || state.me === 'maxim' ? '<button type="button" class="x" data-cdel="' + c.id + '" aria-label="Удалить комментарий">' + ic('x', true) + '</button>' : '') + '</div>';
-    }).join('') : '<p class="when">Комментариев пока нет.</p>') +
-      '<form class="edit-form" id="cm-form" style="margin-top:8px"><input name="b" maxlength="500" placeholder="Написать комментарий" aria-label="Комментарий" autocomplete="off"><button class="btn small primary" type="submit">Отправить</button></form>';
-  }
-  function bindComments(it) {
-    var box = $('tk-cm'); if (!box) return;
-    box.innerHTML = commentsHtml(it);
-    $('cm-form').addEventListener('submit', async function (e) {
-      e.preventDefault();
-      var b = this.elements.b.value.trim(); if (!b) return;
-      this.elements.b.value = '';
-      await act(function () { return rpc('vx_comment_add', { p_code: CODE, p_item: it.id, p_body: b }); }, 'Комментарий добавлен', true);
-      if ($('tk-cm')) bindComments(it); render();
-    });
-    box.addEventListener('click', async function (e) {
-      var d = e.target.closest('[data-cdel]'); if (!d) return;
-      await act(function () { return rpc('vx_comment_del', { p_code: CODE, p_id: d.getAttribute('data-cdel') }); }, '', true);
-      if ($('tk-cm')) bindComments(it); render();
-    });
-  }
   function mTask(id) {
     var it = itemById(id); if (!it) return;
-    var can = canEdit(it), dis = can ? '' : ' disabled', plan = it.kind === 'plan';
-    var h = '<form class="mform" id="tk-form" novalidate><label class="fld wide">Название<input name="t" maxlength="200" required value="' + esc(it.text) + '"' + dis + '></label>';
+    var me = state.me, can = canEdit(it) && it.accept !== 'declined', plan = it.kind === 'plan', dis = can ? '' : ' disabled';
+    var h = '';
+    if (!plan && it.accept === 'new' && it.owner === me) {
+      h += '<div class="banner notice">' + ic('bell', true) + '<span>' + esc(NAMES[it.by]) + ' поручил' + ge(it.by) + ' тебе эту задачу. Прими её или откажись.</span></div>' +
+        '<div class="acts-row"><button type="button" class="btn primary" data-acc="' + id + '">Принять</button><button type="button" class="btn" data-dec="' + id + '">Отклонить</button></div>';
+    }
+    if (!plan && it.accept === 'declined') {
+      h += '<div class="banner">' + ic('x', true) + '<span>' + esc(NAMES[it.owner]) + ' отклонил' + ge(it.owner) + ' задачу' + (it.reason ? ': ' + esc(it.reason) : '') + '.</span></div>' +
+        (it.by === me ? '<div class="acts-row"><button type="button" class="btn" data-takeback="' + id + '">Забрать себе</button></div>' : '');
+    }
+    if (!plan && it.status === 'review' && it.by === me && it.owner !== me) {
+      h += '<div class="banner notice">' + ic('check', true) + '<span>' + esc(NAMES[it.owner]) + ' отметил' + ge(it.owner) + ' задачу готовой. Проверь результат.</span></div>' +
+        '<div class="acts-row"><button type="button" class="btn primary" data-st="' + id + ':done">Принять работу</button><button type="button" class="btn" data-st="' + id + ':doing">Вернуть в работу</button></div>';
+    }
+    h += '<form class="mform" id="tk-form" novalidate><label class="fld wide">Название<input name="t" maxlength="200" required value="' + esc(it.text) + '"' + dis + '></label>';
     if (plan) {
       h += '<label class="fld">Дата<input name="d" type="date" required value="' + esc(it.date) + '"' + dis + '></label><label class="fld">Время<input name="h" type="time" required value="' + esc(it.time) + '"' + dis + '></label>' +
         '<label class="opt wide" style="padding:0;gap:8px;justify-content:flex-start"><input type="checkbox" name="done"' + (it.done ? ' checked' : '') + dis + '>Выполнено</label>';
     } else {
+      var owners = members().filter(function (w) { return w === it.owner || w === me || isFriend(w); });
       h += '<label class="fld">Статус<select name="s"' + dis + '>' + STATUS.map(function (x) { return opt(x[0], x[1], it.status); }).join('') + '</select></label>' +
         '<label class="fld">Приоритет<select name="p"' + dis + '>' + opt('low', 'Низкий', it.prio) + opt('mid', 'Средний', it.prio) + opt('high', 'Высокий', it.prio) + '</select></label>' +
         '<label class="fld">Срок<input name="due" type="date" value="' + esc(it.due) + '"' + dis + '></label>' +
-        '<label class="fld">Исполнитель<select name="o"' + dis + '>' + (members().indexOf(it.owner) < 0 ? [it.owner] : []).concat(members()).map(function (w) { return opt(w, NAMES[w] || w, it.owner); }).join('') + '</select></label>';
+        '<label class="fld">Исполнитель<select name="o"' + dis + '>' + owners.map(function (w) { return opt(w, NAMES[w] || w, it.owner); }).join('') + '</select></label>' +
+        '<label class="fld wide">Кто видит<select name="a"' + dis + '>' + accessOpts(it.access) + '</select></label>';
     }
     h += '<p class="when wide">' + (plan ? 'План' : 'Задача') + ' · добавил' + ge(it.by) + ': ' + esc(NAMES[it.by]) + (it.created ? ' · ' + esc(fmtDt(it.created)) : '') + (can ? '' : ' · только просмотр') + '</p></form>';
     if (!plan) {
+      h += '<div><h2>Чек-лист</h2><div id="tk-ck" style="margin-top:6px"></div></div>';
       var ev = state.events.filter(function (e) { return e.task === id; });
       if (ev.length) h += '<div><h2>Связанные события</h2><div class="card" style="margin-top:8px">' + ev.map(eventRow).join('') + '</div></div>';
     }
-    h += '<div><h2>Комментарии</h2><div id="tk-cm" style="margin-top:6px"></div></div>';
-    h += '<div class="mform"><div class="btns">' + (can ? '<button type="button" class="btn danger" data-del-item="' + id + '" style="margin-right:auto">Удалить</button>' : '') +
+    h += '<div>' + reactBar('item', id) + '</div><div><h2>Комментарии</h2><div id="tk-cm" style="margin-top:6px"></div></div>';
+    h += '<div class="mform"><div class="btns">' + (canEdit(it) ? '<button type="button" class="btn danger" data-del-item="' + id + '" style="margin-right:auto">Удалить</button>' : '') +
       '<button type="button" class="btn" data-close-modal>Закрыть</button>' + (can ? '<button type="submit" form="tk-form" class="btn primary" id="tk-go">Сохранить</button>' : '') + '</div></div>';
     openModal(plan ? 'План' : 'Задача', h);
-    bindComments(it);
+    bindComments('item', id, 'tk-cm');
+    if (!plan) paintCheck(it, can);
     $('tk-form').addEventListener('submit', async function (e) {
       e.preventDefault(); if (!can) return;
       var el = this.elements, t = el.t.value.trim(); if (!t) { el.t.focus(); return; }
@@ -1280,17 +1583,48 @@ details.up summary { padding: 12px var(--pad); cursor: pointer; color: var(--acc
           if (dn !== it.done) await rpc('vx_item_set', { p_code: CODE, p_id: id, p_done: dn });
         };
       } else {
-        fn = function () { return rpc('vx_task_update', { p_code: CODE, p_id: id, p_body: t, p_status: el.s.value, p_priority: el.p.value, p_due: el.due.value || null, p_clear_due: !el.due.value, p_owner: el.o.value }); };
+        fn = function () { return rpc('vx_task_update', { p_code: CODE, p_id: id, p_body: t, p_status: el.s.value, p_priority: el.p.value, p_due: el.due.value || null, p_clear_due: !el.due.value, p_owner: el.o.value, p_access: el.a.value }); };
       }
       $('tk-go').disabled = true;
       var ok = await act(fn, 'Сохранено', true);
       if (ok) { closeModal(); render(); } else if ($('tk-go')) $('tk-go').disabled = false;
     });
   }
+  // Чек-лист задачи: пункты с галочками и процент выполнения.
+  function paintCheck(it, can) {
+    var box = $('tk-ck'); if (!box) return;
+    var list = (itemById(it.id) || it).check || [];
+    function save(next) { return act(function () { return rpc('vx_task_checklist', { p_code: CODE, p_id: it.id, p_list: next }); }, '', true).then(function () { paintCheck(itemById(it.id) || it, can); render(); }); }
+    var d = list.filter(function (x) { return x.d; }).length;
+    box.innerHTML = (list.length ? '<div class="when" style="margin-bottom:4px">Готово ' + d + ' из ' + list.length + ' · ' + Math.round(d / list.length * 100) + '%</div>' : '') +
+      list.map(function (x, i) {
+        return '<div class="ckrow"><label class="opt" style="padding:4px 0;gap:8px;justify-content:flex-start"><input type="checkbox" data-ck="' + i + '"' + (x.d ? ' checked' : '') + (can ? '' : ' disabled') + '><span' + (x.d ? ' class="strike"' : '') + '>' + esc(x.t) + '</span></label>' +
+          (can ? '<button type="button" class="x" data-ckdel="' + i + '" aria-label="Удалить пункт">' + ic('x', true) + '</button>' : '') + '</div>';
+      }).join('') + (can && list.length < 30 ? '<form class="edit-form" id="ck-form" style="margin-top:6px"><input name="t" maxlength="100" placeholder="Новый пункт" aria-label="Новый пункт" autocomplete="off"><button class="btn small" type="submit">Добавить</button></form>' : '');
+    box.onchange = function (e) { var c = e.target.closest('[data-ck]'); if (!c) return; var n = list.map(function (x) { return { t: x.t, d: x.d }; }); n[+c.getAttribute('data-ck')].d = c.checked; save(n); };
+    box.onclick = function (e) { var x = e.target.closest('[data-ckdel]'); if (!x) return; var n = list.map(function (y) { return { t: y.t, d: y.d }; }); n.splice(+x.getAttribute('data-ckdel'), 1); save(n); };
+    var f = $('ck-form');
+    if (f) f.addEventListener('submit', function (e) { e.preventDefault(); var v = f.elements.t.value.trim(); if (!v) return; save(list.map(function (y) { return { t: y.t, d: y.d }; }).concat([{ t: v, d: false }])); });
+  }
   function delItem(id) {
     var it = itemById(id); if (!it) return;
-    confirmDel('«' + it.text + '» будет удалена вместе с комментариями.', function () {
-      act(function () { return rpc('vx_item_del', { p_code: CODE, p_id: id }); }, it.kind === 'plan' ? 'План удалён' : 'Задача удалена');
+    confirmDel('«' + it.text + '» уйдёт в корзину на 7 дней. Её можно вернуть в разделе «Задачи».', function () {
+      closeModal();
+      act(function () { return rpc('vx_item_del', { p_code: CODE, p_id: id }); }, it.kind === 'plan' ? 'План удалён' : 'Задача удалена', false, { label: 'Отменить', fn: function () { undoDelete(it.id); } });
+    });
+  }
+  // Отмена удаления в течение 5 секунд: достаём запись из корзины (id в корзине совпадает с id записи).
+  async function undoDelete(id) {
+    try { await rpc('vx_item_restore', { p_code: CODE, p_id: id }); await loadData(); render(); toast('Запись возвращена'); }
+    catch (e) { showErr(e); }
+  }
+  function declineModal(id) {
+    var it = itemById(id); if (!it) return;
+    openModal('Отклонить задачу', '<form class="mform" id="dc-form"><label class="fld wide">Причина (по желанию)<input name="r" maxlength="200" autocomplete="off" placeholder="Например: нет времени до пятницы"></label>' +
+      '<div class="btns"><button type="button" class="btn" data-close-modal>Отмена</button><button type="submit" class="btn danger">Отклонить</button></div></form>');
+    $('dc-form').addEventListener('submit', async function (e) {
+      e.preventDefault(); var r = this.elements.r.value.trim();
+      closeModal(); await act(function () { return rpc('vx_task_answer', { p_code: CODE, p_id: id, p_accept: false, p_reason: r }); }, 'Задача отклонена');
     });
   }
 
@@ -1298,31 +1632,35 @@ details.up summary { padding: 12px var(--pad); cursor: pointer; color: var(--acc
   function mEvent(id) {
     var e = eventById(id); if (!e) return;
     var me = state.me, can = e.by === me || me === 'maxim', dis = can ? '' : ' disabled', mine = e.votes[me], yesL = FEM[me] ? 'Согласна' : 'Согласен';
-    var lt = e.task ? itemById(e.task) : null;
+    var lt = e.task ? itemById(e.task) : null, t = evTally(e);
     var h = '<form class="mform" id="ev-edit" novalidate><label class="fld wide">Название<input name="t" maxlength="120" required value="' + esc(e.title) + '"' + dis + '></label>' +
       '<label class="fld">Дата<input name="d" type="date" required value="' + esc(e.date) + '"' + dis + '></label><label class="fld">Время<input name="h" type="time" required value="' + esc(e.time) + '"' + dis + '></label>' +
+      '<label class="fld">Длительность<select name="dur"' + dis + '>' + [[0, 'Не указана'], [30, '30 минут'], [60, '1 час'], [90, '1,5 часа'], [120, '2 часа'], [180, '3 часа']].map(function (x) { return opt(String(x[0]), x[1], String(e.dur || 0)); }).join('') + '</select></label>' +
+      '<label class="fld">Место<input name="pl" maxlength="80" value="' + esc(e.place) + '"' + dis + '></label>' +
       '<label class="fld wide">Категория<select name="c"' + dis + '>' + ['work', 'study', 'personal', 'other'].map(function (k) { return opt(k, CATS[k].n, e.cat); }).join('') + '</select></label>' +
-      '<p class="when wide">Предложил' + ge(e.by) + ': ' + esc(NAMES[e.by]) + (can ? '. После изменения остальные участники должны ответить ещё раз.' : '. Изменить может только автор.') + '</p></form>';
-    h += '<div><h2>Ответы</h2><div class="votes" style="margin-top:8px">' + members().map(function (w) {
-      var v = e.votes[w]; return '<span class="badge ' + (v || '') + '">' + esc(NAMES[w]) + ': ' + (v === 'yes' ? (FEM[w] ? 'согласна' : 'согласен') : v === 'no' ? 'отказ' : 'ждёт') + '</span>';
-    }).join('') + '</div><div class="votes" style="margin-top:10px">' +
+      '<p class="when wide">Предложил' + ge(e.by) + ': ' + esc(NAMES[e.by]) + ' · правило: ' + (e.rule === 'majority' ? 'достаточно большинства' : 'нужно согласие всех') + (can ? '. После изменения приглашённые отвечают ещё раз.' : '. Изменить может только автор.') + '</p></form>';
+    h += '<div><h2>Ответы · ' + t.yes + ' из ' + t.inv.length + '</h2><div class="votes" style="margin-top:8px">' + t.inv.map(function (w) {
+      var v = e.votes[w]; return '<span class="badge ' + (v || '') + '">' + esc(NAMES[w]) + ': ' + (v === 'yes' ? (FEM[w] ? 'согласна' : 'согласен') : v === 'no' ? 'отказ' : w === e.by ? 'автор' : 'ждёт') + '</span>';
+    }).join('') + '</div>' + (e.by !== me ? '<div class="votes" style="margin-top:10px">' +
       '<button type="button" class="btn yes" data-vote="yes" data-id="' + id + '" aria-pressed="' + (mine === 'yes') + '">' + yesL + '</button>' +
-      '<button type="button" class="btn no" data-vote="no" data-id="' + id + '" aria-pressed="' + (mine === 'no') + '">Отказаться</button></div></div>';
+      '<button type="button" class="btn no" data-vote="no" data-id="' + id + '" aria-pressed="' + (mine === 'no') + '">Отказаться</button></div>' : '') + '</div>';
     if (lt) h += '<div><h2>Связанная задача</h2><div class="card" style="margin-top:8px">' + taskRow(lt, true) + '</div></div>';
-    h += '<div class="mform"><div class="btns"><button type="button" class="btn danger" data-del-ev="' + id + '" style="margin-right:auto">Удалить</button><button type="button" class="btn" data-close-modal>Закрыть</button>' +
+    h += '<div>' + reactBar('event', id) + '</div><div><h2>Комментарии</h2><div id="ev-cm" style="margin-top:6px"></div></div>';
+    h += '<div class="mform"><div class="btns">' + (can ? '<button type="button" class="btn danger" data-del-ev="' + id + '" style="margin-right:auto">Удалить</button>' : '') + '<button type="button" class="btn" data-close-modal>Закрыть</button>' +
       (can ? '<button type="submit" form="ev-edit" class="btn primary" id="ev-go">Сохранить</button>' : '') + '</div></div>';
     openModal('Событие', h);
+    bindComments('event', id, 'ev-cm');
     $('ev-edit').addEventListener('submit', async function (ev) {
       ev.preventDefault(); if (!can) return;
-      var el = this.elements, t = el.t.value.trim(); if (!t || !el.d.value || !el.h.value) return;
+      var el = this.elements, t2 = el.t.value.trim(); if (!t2 || !el.d.value || !el.h.value) return;
       $('ev-go').disabled = true;
-      var ok = await act(function () { return rpc('vx_event_edit', { p_code: CODE, p_id: id, p_title: t, p_day: el.d.value, p_time: el.h.value, p_cat: el.c.value }); }, 'Сохранено', true);
+      var ok = await act(function () { return rpc('vx_event_edit', { p_code: CODE, p_id: id, p_title: t2, p_day: el.d.value, p_time: el.h.value, p_cat: el.c.value, p_place: el.pl.value.trim(), p_dur: parseInt(el.dur.value, 10) || 0 }); }, 'Сохранено', true);
       if (ok) { closeModal(); render(); } else if ($('ev-go')) $('ev-go').disabled = false;
     });
   }
   function delEvent(id) {
     var e = eventById(id); if (!e) return;
-    confirmDel('Событие «' + e.title + '» будет удалено у всех.', function () { act(function () { return rpc('vx_event_del', { p_code: CODE, p_id: id }); }, 'Событие удалено'); });
+    confirmDel('Событие «' + e.title + '» будет удалено у всех.', function () { closeModal(); act(function () { return rpc('vx_event_del', { p_code: CODE, p_id: id }); }, 'Событие удалено'); });
   }
   function castVote(id, val) {
     var e = eventById(id); if (!e) return;
@@ -1330,34 +1668,470 @@ details.up summary { padding: 12px var(--pad); cursor: pointer; color: var(--acc
     act(function () { return rpc('vx_event_vote', { p_code: CODE, p_id: id, p_vote: cur === val ? '' : val }); }, '', true).then(function () { if (modalOpen() && $('ev-edit')) mEvent(id); render(); });
   }
 
+  /* ----- пара из расписания ----- */
+  function mPair(id) {
+    var r = state.schedule.filter(function (x) { return x.id === id; })[0]; if (!r) return;
+    var tm = PAIR_TIMES[r.pair];
+    openModal('Пара', '<div class="mform"><h3 style="margin:0">' + esc(r.subject) + '</h3><p class="when">' + esc(NAMES[r.owner]) + ' · ' + esc(longDate(r.date)) + ' · ' + r.pair + '-я пара' + (tm ? ' (' + tm[0] + '–' + tm[1] + ')' : '') + (r.room ? ' · ' + esc(r.room) : '') + '</p>' +
+      '<div class="btns">' + (r.owner === state.me ? '<button type="button" class="btn danger" data-del-sc="' + id + '" style="margin-right:auto">Удалить</button>' : '') + '<button type="button" class="btn" data-close-modal>Закрыть</button></div></div>');
+  }
+
+  /* ----- колокольчик ----- */
+  var BELL_ICON = { friend_req: 'users', friend: 'users', task: 'tasks', accept: 'check', decline: 'x', event: 'cal', vote: 'cal', comment: 'chat', mention: 'chat', notice: 'bell', review: 'check' };
+  function mBell() {
+    var list = state.bell, unread = unreadBell();
+    var h = '<div class="acts-row">' + (unread ? '<button type="button" class="btn small" data-bell-all>Прочитать всё</button>' : '') + '</div><div class="bell-list">' + (list.length ? list.map(function (b) {
+      return '<div class="brow' + (b.read ? '' : ' unread') + '" data-bell="' + b.id + '" data-bref="' + esc((b.ref || '') + ':' + (b.ref_id || '')) + '" role="button" tabindex="0">' + (b.from ? av(b.from, 's') : '<span class="av s">' + ic('bell', true) + '</span>') +
+        '<div><div class="ttl">' + mentionHtml(b.body) + '</div><div class="when">' + esc(ago(b.at)) + '</div></div>' + (b.read ? '' : '<i class="dotn"></i>') + '</div>';
+    }).join('') : empty('bell', 'Уведомлений пока нет.')) + '</div>';
+    openModal('Уведомления', h);
+  }
+  function bellOpen(id, ref) {
+    var b = state.bell.filter(function (x) { return String(x.id) === String(id); })[0];
+    if (b && !b.read) { b.read = true; markNav(); rpc('vx_bell_read', { p_code: CODE, p_id: b.id }).catch(function () {}); }
+    var p = String(ref || ':').split(':'), kind = p[0], rid = p[1];
+    closeModal();
+    if (kind === 'item' && itemById(rid)) mTask(rid);
+    else if (kind === 'event' && eventById(rid)) mEvent(rid);
+    else if (b && (b.kind === 'friend_req' || b.kind === 'friend')) { sub.people = 'req'; go('people'); }
+  }
+
+  /* ----- знакомство при первом входе ----- */
+  var TOUR = [
+    ['home', 'Сегодня', 'Главный экран: лента дня, счётчики и то, что ждёт твоего ответа.'],
+    ['users', 'Люди', 'Добавь друзей. Задачи и планы можно ставить только друзьям, и человек сам решает, принять ли задачу.'],
+    ['cal', 'Календарь', 'События, планы, пары и сроки в одном месте. Слой друзей показывает, когда все свободны.']
+  ];
+  function mTour(step) {
+    step = step || 0;
+    var last = step >= TOUR.length, h;
+    if (!last) {
+      var s = TOUR[step];
+      h = '<div class="tour">' + ic(s[0]) + '<h3>' + s[1] + '</h3><p>' + s[2] + '</p></div><div class="mform"><div class="btns"><button type="button" class="btn" data-tour-skip>Пропустить</button><button type="button" class="btn primary" data-tour-next="' + (step + 1) + '">Дальше · ' + (step + 1) + ' из ' + (TOUR.length + 1) + '</button></div></div>';
+    } else {
+      h = '<div class="tour">' + ic('bolt') + '<h3>Как поставить на телефон</h3><p>Открой сайт в браузере телефона и выбери «Добавить на экран «Домой»». Тогда VEXXO откроется как приложение.</p></div><div class="mform"><div class="btns"><button type="button" class="btn" data-tour-skip>Готово</button><button type="button" class="btn primary" data-tour-find>Найти друзей</button></div></div>';
+    }
+    openModal('Добро пожаловать', h);
+  }
+  function tourDone(findFriends) {
+    closeModal();
+    rpc('vx_tour_done', { p_code: CODE, p_done: true }).catch(function () {});
+    if (state.profile) state.profile.tour = true;
+    if (findFriends) { sub.people = 'find'; go('people'); }
+  }
+  /* ----- люди: друзья, поиск, запросы, заблокированные ----- */
+  function personRow(u, actions, note) {
+    return '<div class="mrow"><div class="mi" ' + (u.rel === 'friend' ? 'data-go="' + esc(u.name) + '" role="button" tabindex="0"' : '') + '>' + av(u.name) + '<div><strong>' + esc(u.title) + '</strong>' +
+      (note ? '<br><span class="when">' + note + '</span>' : '') + '</div></div><span class="acts-row">' + actions + '</span></div>';
+  }
+  function vPeople() {
+    if (!sub.people) sub.people = incoming().length ? 'req' : 'friends';
+    var s = sub.people, others = state.users.filter(function (u) { return !u.off && u.name !== state.me; });
+    var fr = others.filter(function (u) { return u.rel === 'friend'; }), req = others.filter(function (u) { return u.rel === 'in'; }), out = others.filter(function (u) { return u.rel === 'out'; }), bl = others.filter(function (u) { return u.rel === 'blocked'; });
+    var find = others.filter(function (u) { return u.rel === 'none' || u.rel === 'out'; });
+    var tabs = [['friends', 'Друзья · ' + fr.length], ['find', 'Найти'], ['req', 'Запросы' + (req.length ? ' · ' + req.length : '')], ['blocked', 'Заблокированные' + (bl.length ? ' · ' + bl.length : '')]];
+    var h = '<div class="row"><h1>Люди</h1></div><div class="sub" id="psub" role="group" aria-label="Раздел">' + tabs.map(function (t) { return '<button type="button" data-ps="' + t[0] + '" aria-pressed="' + (s === t[0]) + '">' + t[1] + '</button>'; }).join('') + '</div>';
+    if (s === 'friends') {
+      h += '<section class="card">' + (fr.length ? fr.map(function (u) {
+        return personRow(u, '<button type="button" class="btn small" data-go="' + esc(u.name) + '">Открыть</button><button type="button" class="btn small" data-fr-del="' + esc(u.name) + '">Убрать</button><button type="button" class="btn small" data-fr-block="' + esc(u.name) + '">Заблокировать</button>',
+          (u.online ? 'сейчас на сайте' : '') + (u.group ? (u.online ? ' · ' : '') + 'группа ' + esc(u.group) : ''));
+      }).join('') : empty('users', 'Друзей пока нет. Найди людей и отправь запрос.', '<button type="button" class="btn small primary" data-ps="find">Найти людей</button>')) + '</section>';
+    } else if (s === 'find') {
+      h += '<section class="card">' + (find.length ? find.map(function (u) {
+        return personRow(u, u.rel === 'out' ? '<button type="button" class="btn small" data-fr-cancel="' + esc(u.name) + '">Отменить запрос</button>' : u.paused ? '<span class="badge">Пауза до 30 дней</span>' : '<button type="button" class="btn small primary" data-fr-add="' + esc(u.name) + '">Добавить в друзья</button>',
+          u.rel === 'out' ? 'запрос отправлен' : '');
+      }).join('') : empty('search', 'Новых людей для добавления нет.')) + '</section><p class="local-note">Запрос живёт 14 дней. Если человек отклонил запрос, повторить можно через 30 дней.</p>';
+    } else if (s === 'req') {
+      h += '<section class="card"><header><h2>Мне прислали</h2></header>' + (req.length ? req.map(function (u) {
+        return personRow(u, '<button type="button" class="btn small primary" data-fr-ok="' + esc(u.name) + '">Принять</button><button type="button" class="btn small" data-fr-no="' + esc(u.name) + '">Отклонить</button><button type="button" class="btn small" data-fr-block="' + esc(u.name) + '">Заблокировать</button>', u.rel_at ? esc(ago(u.rel_at)) : '');
+      }).join('') : empty('bell', 'Новых запросов нет.')) + '</section>' +
+        (out.length ? '<section class="card"><header><h2>Я отправил</h2></header>' + out.map(function (u) { return personRow(u, '<button type="button" class="btn small" data-fr-cancel="' + esc(u.name) + '">Отменить</button>', 'ждёт ответа'); }).join('') + '</section>' : '');
+    } else {
+      h += '<section class="card">' + (bl.length ? bl.map(function (u) { return personRow(u, '<button type="button" class="btn small" data-fr-unblock="' + esc(u.name) + '">Разблокировать</button>', ''); }).join('') : empty('block', 'Никого не заблокировано.')) + '</section>';
+    }
+    $('view').innerHTML = h;
+  }
+  async function friendAct(fn, okMsg) { return act(fn, okMsg); }
+  function friendRemove(who) {
+    var mine = state.items.filter(function (i) { return i.kind === 'task' && ((i.by === state.me && i.owner === who) || (i.by === who && i.owner === state.me)) && i.status !== 'done'; });
+    openModal('Убрать из друзей', '<div class="mform"><p>' + esc(NAMES[who]) + ' больше не увидит твои записи для друзей' + (mine.length ? '. Общих открытых задач: ' + mine.length : '') + '.</p>' +
+      (mine.length ? '<label class="fld wide">Что сделать с общими задачами<select id="fr-tasks">' + opt('keep', 'Оставить как есть', 'keep') + opt('back', 'Вернуть задачи авторам', 'keep') + '</select></label>' : '') +
+      '<div class="btns"><button type="button" class="btn" data-close-modal>Отмена</button><button type="button" class="btn danger" id="fr-yes">Убрать</button></div></div>');
+    $('fr-yes').addEventListener('click', function () {
+      var t = $('fr-tasks') ? $('fr-tasks').value : 'keep'; closeModal();
+      friendAct(function () { return rpc('vx_friend_remove', { p_code: CODE, p_who: who, p_tasks: t }); }, 'Убран из друзей');
+    });
+  }
+  async function friendAdd(who) {
+    progress(true);
+    try {
+      var r = await rpc('vx_friend_request', { p_code: CODE, p_to: who });
+      await loadData();
+      if (r && r.error) toast(r.error === 'already' ? 'Запрос уже отправлен или вы уже друзья' : r.error === 'pause' ? 'Человек недавно отклонил запрос. Повторить можно через 30 дней' : r.error === 'blocked' ? 'Нельзя отправить запрос' : 'Не получилось', true);
+      else toast(r && r.friends ? 'Теперь вы друзья' : 'Запрос отправлен');
+    } catch (e) { showErr(e); }
+    progress(false); render();
+  }
+
   /* ----- страница человека ----- */
   var sched = { who: '' };
   function vPerson(who) {
+    var me = state.me, mineP = who === me, rel = relOf(who), isFr = mineP || rel === 'friend';
+    if (!isFr) {
+      var u = userOf(who) || { title: NAMES[who] || who };
+      $('view').innerHTML = '<div class="phead">' + av(who, 'l') + '<div><h1>' + esc(NAMES[who] || who) + '</h1><p>Вы пока не друзья. Задачи и планы друг друга видны только друзьям.</p></div></div><section class="card">' +
+        '<div class="card-b">' + (rel === 'in' ? '<div class="acts-row"><button type="button" class="btn primary" data-fr-ok="' + esc(who) + '">Принять запрос</button><button type="button" class="btn" data-fr-no="' + esc(who) + '">Отклонить</button></div>' :
+          rel === 'out' ? '<p>Запрос отправлен. Ждём ответа.</p><button type="button" class="btn" data-fr-cancel="' + esc(who) + '">Отменить запрос</button>' :
+          rel === 'blocked' ? '<p>Человек заблокирован.</p><button type="button" class="btn" data-fr-unblock="' + esc(who) + '">Разблокировать</button>' :
+          '<button type="button" class="btn primary" data-fr-add="' + esc(who) + '">Добавить в друзья</button>') + '</div></section>';
+      return;
+    }
     if (!sub[who]) sub[who] = 'tasks';
-    var mineP = who === state.me, open = openTasksOf(who);
-    var tabs = [['tasks', 'Задачи'], ['plans', 'Планы'], ['sched', 'Расписание']];
-    var h = '<div class="phead">' + av(who, 'l') + '<div><h1>' + esc(NAMES[who]) + '</h1><p>' + (mineP ? 'Это твоя страница. ' : '') + 'Открытых задач: ' + open.length + '</p></div></div>' +
+    var open = openTasksOf(who).filter(function (i) { return i.accept !== 'declined'; }), u2 = userOf(who);
+    var tabs = [['tasks', 'Задачи'], ['plans', 'Планы'], ['sched', 'Расписание']].concat(mineP ? [] : [['both', 'Вместе']]);
+    var h = '<div class="phead">' + av(who, 'l') + '<div><h1>' + esc(NAMES[who]) + '</h1><p>' + (mineP ? 'Это твоя страница. ' : '') + 'Открытых задач: ' + open.length + (u2 && u2.online ? ' · сейчас на сайте' : '') + (u2 && u2.group ? ' · группа ' + esc(u2.group) : '') + '</p></div></div>' +
       '<div class="sub" id="sub" role="group" aria-label="Раздел">' + tabs.map(function (t) { return '<button type="button" data-s="' + t[0] + '" aria-pressed="' + (sub[who] === t[0]) + '">' + t[1] + '</button>'; }).join('') + '</div>';
-    if (sub[who] === 'tasks') {
-      var all = state.tasks[who].slice().sort(sortTasks), op = all.filter(function (i) { return i.status !== 'done'; }), dn = all.filter(function (i) { return i.status === 'done'; });
-      h += '<section class="card"><form class="edit-form" id="qa-form" style="padding:var(--pad)"><input name="t" maxlength="200" required placeholder="' + (mineP ? 'Новая задача для себя' : 'Новая задача для: ' + NAMES[who]) + '" aria-label="Новая задача" autocomplete="off"><button class="btn primary" type="submit">' + ic('plus') + 'Добавить</button></form>' +
+    var tab = sub[who];
+    if (tab === 'tasks') {
+      var all = (state.tasks[who] || []).filter(function (i) { return i.accept !== 'declined' && !isArchived(i); }).sort(sortTasks), op = all.filter(function (i) { return i.status !== 'done'; }), dn = all.filter(function (i) { return i.status === 'done'; });
+      h += '<section class="card"><form class="edit-form" id="qa-form" style="padding:var(--pad)"><input name="t" maxlength="200" required placeholder="' + (mineP ? 'Новая задача для себя' : 'Новая задача для: ' + NAMES[who] + ' (он увидит запрос на принятие)') + '" aria-label="Новая задача" autocomplete="off"><button class="btn primary" type="submit">' + ic('plus') + 'Добавить</button></form>' +
         (op.length ? op.map(function (i) { return taskRow(i, false); }).join('') : empty('check', 'Открытых задач нет.')) + '</section>';
       if (dn.length) h += '<section class="card"><header><h2>Готово · ' + dn.length + '</h2></header>' + dn.slice(-8).reverse().map(function (i) { return taskRow(i, false); }).join('') + '</section>';
-    } else if (sub[who] === 'plans') {
-      var pls = state.plans[who].filter(function (i) { return !i.done; }).sort(function (a, b) { return (a.date + a.time) < (b.date + b.time) ? -1 : 1; });
+    } else if (tab === 'plans') {
+      var pls = (state.plans[who] || []).filter(function (i) { return !i.done; }).sort(function (a, b) { return (a.date + a.time) < (b.date + b.time) ? -1 : 1; });
       h += '<div>' + newBtn('plan', 'Новый план') + '</div><section class="card">' + (pls.length ? pls.map(planRow).join('') : empty('clock', 'Планов по времени пока нет.')) + '</section>';
-    } else h += schedHtml(who);
+    } else if (tab === 'both') {
+      var tg = state.items.filter(function (i) { return (i.owner === who && i.by === me) || (i.owner === me && i.by === who); }).sort(sortTasks);
+      var ev = state.events.filter(function (e) { return e.by === who || e.guests.indexOf(who) >= 0 || e.votes[who]; });
+      h += '<section class="card"><header><h2>Общие задачи</h2></header>' + (tg.length ? tg.map(function (i) { return taskRow(i, true); }).join('') : empty('tasks', 'Общих задач нет.')) + '</section>' +
+        '<section class="card"><header><h2>Общие события</h2></header>' + (ev.length ? ev.map(eventRow).join('') : empty('cal', 'Общих событий нет.')) + '</section>';
+      var fw = freeWindows(today(), [me, who]);
+      h += '<section class="card"><header><h2>Свободно сегодня обоим</h2></header><div class="card-b">' + (fw.length ? fw.map(function (w) { return '<span class="badge yes mono">' + mm(w[0]) + '–' + mm(w[1]) + '</span> '; }).join('') : '<span class="when">Общих свободных часов сегодня нет.</span>') + '</div></section>';
+    } else {
+      var has = state.schedule.some(function (r) { return r.owner === who; });
+      h += (!has && !mineP ? '<p class="local-note">Расписания нет: оно пустое или скрыто настройками человека.</p>' : '') + schedHtml(who);
+    }
     $('view').innerHTML = h;
     $('sub').addEventListener('click', function (e) { var b = e.target.closest('button[data-s]'); if (b) { sub[who] = b.getAttribute('data-s'); vPerson(who); } });
-    if (sub[who] === 'tasks') {
+    if (tab === 'tasks') {
       $('qa-form').addEventListener('submit', function (e) {
         e.preventDefault(); var t = this.elements.t.value.trim(); if (!t) return;
-        act(function () { return rpc('vx_item_add', { p_code: CODE, p_kind: 'task', p_body: t, p_when: '', p_owner: who, p_day: null, p_time: null, p_priority: 'mid', p_due: null }); }, 'Задача добавлена');
+        act(function () { return rpc('vx_item_add', { p_code: CODE, p_kind: 'task', p_body: t, p_when: '', p_owner: who, p_day: null, p_time: null, p_priority: 'mid', p_due: null, p_access: 'friends' }); }, who === me ? 'Задача добавлена' : 'Задача отправлена: ' + NAMES[who] + ' должен' + (FEM[who] ? 'на' : '') + ' её принять');
       });
     }
-    if (sub[who] === 'sched' && who === state.me) bindSched();
+    if (tab === 'sched' && mineP) bindSched();
   }
 
+  /* ----- списки ----- */
+  var openList = '';
+  function vLists() {
+    var me = state.me, fr = friendNames();
+    var h = '<div class="row"><h1>Списки</h1></div><section class="card"><form class="edit-form" id="ls-form" style="padding:var(--pad)"><input name="t" maxlength="100" required placeholder="Новый список (покупки, поездка)" aria-label="Название списка" autocomplete="off"><button class="btn primary" type="submit">' + ic('plus') + 'Создать</button></form></section>';
+    if (!state.lists.length) h += '<section class="card">' + empty('list', 'Списков пока нет. Создай общий список с друзьями.') + '</section>';
+    state.lists.forEach(function (l) {
+      var open = openList === l.id, d = l.items.filter(function (x) { return x.done; }).length, mem = [l.by].concat(l.members || []).filter(function (x, i, a) { return a.indexOf(x) === i; });
+      h += '<section class="card"><header><h2 data-ls-open="' + l.id + '" role="button" tabindex="0" style="cursor:pointer">' + esc(l.title) + ' · ' + d + '/' + l.items.length + '</h2><span class="acts-row">' + mem.map(function (w) { return av(w, 's'); }).join('') + '<button type="button" class="link" data-ls-open="' + l.id + '">' + (open ? 'Свернуть' : 'Открыть') + '</button></span></header>';
+      if (open) {
+        h += l.items.map(function (x) {
+          return '<div class="ckrow"><label class="opt" style="padding:6px var(--pad);gap:8px;justify-content:flex-start;flex:1"><input type="checkbox" data-ls-chk="' + x.id + '"' + (x.done ? ' checked' : '') + '><span' + (x.done ? ' class="strike"' : '') + '>' + esc(x.text) + '</span></label><button type="button" class="x" data-ls-idel="' + x.id + '" aria-label="Удалить пункт">' + ic('x', true) + '</button></div>';
+        }).join('') + '<form class="edit-form" data-ls-add="' + l.id + '" style="padding:var(--pad)"><input name="t" maxlength="120" placeholder="Новый пункт" aria-label="Новый пункт" autocomplete="off"><button class="btn small" type="submit">Добавить</button></form>';
+        if (l.by === me) {
+          h += '<div class="card-b"><div class="when" style="margin-bottom:6px">Участники</div><div class="legend">' + fr.map(function (w) { return '<button type="button" data-ls-mem="' + l.id + ':' + esc(w) + '" aria-pressed="' + ((l.members || []).indexOf(w) >= 0) + '">' + av(w, 's') + esc(NAMES[w]) + '</button>'; }).join('') + (fr.length ? '' : '<span class="when">Добавь друзей, чтобы делиться списком.</span>') + '</div>' +
+            '<button type="button" class="btn small danger" data-ls-del="' + l.id + '" style="margin-top:8px">Удалить список</button></div>';
+        }
+      }
+      h += '</section>';
+    });
+    $('view').innerHTML = h;
+    $('ls-form').addEventListener('submit', function (e) {
+      e.preventDefault(); var t = this.elements.t.value.trim(); if (!t) return;
+      act(function () { return rpc('vx_list_add', { p_code: CODE, p_title: t, p_members: [] }); }, 'Список создан');
+    });
+  }
+  function listById(id) { return state.lists.filter(function (l) { return l.id === id; })[0]; }
+  /* ----- кабинет ----- */
+  function seg(key, cur, items) {
+    return '<div class="seg" role="group">' + items.map(function (x) { return '<button type="button" data-pref="' + key + ':' + x[0] + '" aria-pressed="' + (cur === x[0]) + '">' + x[1] + '</button>'; }).join('') + '</div>';
+  }
+  function vMe() {
+    var h = '<div class="phead">' + av(state.me, 'l') + '<div><h1>Кабинет</h1><p>' + esc(NAMES[state.me]) + '. Это устройство запомнено: повторно вводить код не нужно 30 дней.</p></div></div>' +
+      '<section class="panel"><h2 class="panel-h">Оформление (только на этом устройстве)</h2><div class="panel-b"><div class="fld">Тема</div>' + seg('theme', prefs.theme, [['dark', 'Тёмная'], ['light', 'Светлая'], ['auto', 'Как в телефоне']]) +
+      '<div class="fld">Плотность</div>' + seg('density', prefs.density, [['comfort', 'Свободно'], ['compact', 'Компактно']]) +
+      '<label class="fld">Какую страницу открывать после входа<select id="pf-start">' + [['today', 'Сегодня'], ['cal', 'Календарь'], ['tasks', 'Задачи'], ['draw', 'Чертежи']].map(function (x) { return opt(x[0], x[1], prefs.start); }).join('') + '</select></label></div></section>' +
+      '<section class="panel"><h2 class="panel-h">Профиль</h2><form class="form" id="prof-form">' +
+      '<label>Имя на сайте<input id="pr-name" maxlength="20" required autocomplete="off" value="' + esc(NAMES[state.me]) + '"></label>' +
+      '<label>Обращение<select id="pr-fem">' + opt('0', 'Парень', FEM[state.me] ? '1' : '0') + opt('1', 'Девушка', FEM[state.me] ? '1' : '0') + '</select></label>' +
+      '<button class="btn primary" type="submit">Сохранить</button><p class="form-msg wide" id="pr-msg" role="status">Имя видят все участники. Обращение нужно для окончаний («добавил» или «добавила»).</p></form></section>' +
+      '<section class="panel"><h2 class="panel-h">Приватность и расписание</h2><form class="form" id="set-form">' +
+      '<label>Группа (видят друзья)<input id="st-group" maxlength="20" autocomplete="off" value="' + esc((state.profile && state.profile.group) || '') + '" placeholder="Например: ИС-21"></label>' +
+      '<label>Кто видит моё расписание<select id="st-sched">' + opt('friends', 'Друзья', (state.profile && state.profile.show_sched) || 'friends') + opt('all', 'Все участники', (state.profile && state.profile.show_sched) || 'friends') + opt('none', 'Никто', (state.profile && state.profile.show_sched) || 'friends') + '</select></label>' +
+      '<label>Показывать, что я на сайте<select id="st-online">' + opt('friends', 'Друзьям', (state.profile && state.profile.show_online) || 'friends') + opt('none', 'Никому', (state.profile && state.profile.show_online) || 'friends') + '</select></label>' +
+      '<button class="btn primary" type="submit">Сохранить</button><p class="form-msg wide" id="st-msg" role="status"></p></form></section>' +
+      (state.me === 'maxim' ? '<section class="panel"><h2 class="panel-h">Объявление для всех</h2><form class="form" id="nt-form"><label class="wide">Текст (до 300 символов, пусто — убрать)<input id="nt-body" maxlength="300" autocomplete="off" value="' + esc((state.notice && state.notice.body) || '') + '"></label><button class="btn primary" type="submit">Опубликовать</button></form></section>' : '') +
+      '<section class="panel"><h2 class="panel-h">Помощь</h2><div class="panel-b"><p>Лимиты: 12 участников, название до 200 символов, комментарий до 500, файл до 25 МБ, вход помнится 30 дней. Горячая клавиша «/» открывает поиск.</p><div class="acts-row"><button type="button" class="btn" data-tour-again>Показать знакомство снова</button><button type="button" class="btn" data-go="people" data-sub="blocked">Заблокированные</button></div></div></section>' +
+      '<section class="panel"><h2 class="panel-h">Сменить код</h2><form class="form" id="code-form">' +
+      '<label>Текущий код<input id="cc-cur" type="password" inputmode="numeric" autocomplete="off" pattern="[0-9]{4,12}" required></label>' +
+      '<label>Новый код (6–12 цифр)<input id="cc-new" type="password" inputmode="numeric" autocomplete="off" pattern="[0-9]{6,12}" required></label>' +
+      '<label>Повтори новый код<input id="cc-rep" type="password" inputmode="numeric" autocomplete="off" pattern="[0-9]{6,12}" required></label>' +
+      '<button class="btn primary" type="submit">Сменить код</button><p class="form-msg wide" id="cc-msg" role="status"></p></form></section>' +
+      '<section class="panel"><h2 class="panel-h">Устройства</h2><div class="panel-b"><p>Выйти на всех устройствах, включая это. Потребуется ввести код заново.</p><button type="button" class="btn" id="logout-all">Выйти на всех устройствах</button></div></section>' +
+      '<section class="panel"><h2 class="panel-h">Telegram</h2><div class="panel-b"><p id="tg-state">Проверяю подключение…</p><div class="acts-row" id="tg-acts"></div></div>' +
+      '<label class="opt" id="tg-opt" hidden><span>Присылать мне сообщения в Telegram<br><span class="when">Напоминания, сводка и новые записи от другого человека.</span></span><input type="checkbox" id="tg-self"' + ((state.raw && state.raw.tg_muted) ? '' : ' checked') + '></label></section>' +
+      '<section class="panel"><h2 class="panel-h">Мои данные</h2><div class="panel-b"><p>Скачать копию своих записей, расписания и событий одним файлом (JSON).</p><button type="button" class="btn" id="export">Скачать мои данные</button></div></section>';
+    $('view').innerHTML = h;
+    tgPaint();
+    $('pf-start').addEventListener('change', function () { prefs.start = this.value; savePrefs(); toast('Сохранено'); });
+    $('prof-form').addEventListener('submit', async function (e) {
+      e.preventDefault();
+      var msg = $('pr-msg'), nm = $('pr-name').value.trim();
+      msg.textContent = 'Сохраняем…';
+      try {
+        var r = await rpc('vx_me_profile', { p_code: CODE, p_title: nm, p_fem: $('pr-fem').value === '1' });
+        if (r && r.error) { msg.textContent = r.error === 'taken' ? 'Такое имя уже есть у другого участника.' : 'Имя: от 2 до 20 символов, буквы и цифры.'; return; }
+        await loadData(); buildNav(); toast('Профиль сохранён'); vMe();
+      } catch (err) { msg.textContent = 'Нет связи с сервером.'; }
+    });
+    $('set-form').addEventListener('submit', async function (e) {
+      e.preventDefault(); var msg = $('st-msg'); msg.textContent = 'Сохраняем…';
+      try { await rpc('vx_me_settings', { p_code: CODE, p_group: $('st-group').value.trim(), p_show_sched: $('st-sched').value, p_show_online: $('st-online').value }); await loadData(); msg.textContent = 'Сохранено.'; toast('Настройки сохранены'); }
+      catch (err) { msg.textContent = errText(err); }
+    });
+    if ($('nt-form')) $('nt-form').addEventListener('submit', function (e) { e.preventDefault(); var b = $('nt-body').value.trim(); act(function () { return rpc('vx_notice_set', { p_code: CODE, p_body: b }); }, b ? 'Объявление опубликовано' : 'Объявление убрано'); });
+    $('code-form').addEventListener('submit', async function (e) {
+      e.preventDefault();
+      var cur = $('cc-cur').value, nw = $('cc-new').value, rp = $('cc-rep').value, msg = $('cc-msg');
+      if (nw !== rp) { msg.textContent = 'Новые коды не совпадают.'; return; }
+      if (!/^[0-9]{6,12}$/.test(nw)) { msg.textContent = 'Новый код: от 6 до 12 цифр.'; return; }
+      msg.textContent = 'Сохраняем…';
+      try {
+        var r = await rpc('vx_change_code', { p_session: CODE, p_current: cur, p_new: nw });
+        msg.textContent = r === 'ok' ? 'Код изменён. Остальные устройства вышли, это осталось.' :
+          r === 'bad_current' ? 'Текущий код неверный.' : r === 'bad_new' ? 'Новый код: от 6 до 12 цифр.' :
+          r === 'taken' ? 'Этот код занят, выбери другой.' : 'Не получилось. Выйди и войди заново.';
+        if (r === 'ok') { $('cc-cur').value = ''; $('cc-new').value = ''; $('cc-rep').value = ''; toast('Код изменён'); }
+      } catch (err) { msg.textContent = /too_many_attempts/.test(err.message || '') ? 'Слишком много попыток. Подожди 5 минут.' : 'Нет связи с сервером.'; }
+    });
+    $('tg-self').addEventListener('change', async function () {
+      var on = this.checked, el = this;
+      try { var r = await rpc('vx_me_tg', { p_code: CODE, p_on: on }); if (state.raw) state.raw.tg_muted = !!r; toast(on ? 'Сообщения включены' : 'Сообщения отключены'); }
+      catch (err) { el.checked = !on; showErr(err); }
+    });
+    $('logout-all').addEventListener('click', async function () {
+      var t = CODE;
+      try { await rpc('vx_logout_all', { p_session: t }); } catch (e) { showErr(e); return; }
+      leave();
+    });
+    $('export').addEventListener('click', function () {
+      var me = state.me, r = state.raw || {};
+      downloadJson('vexxo-' + me + '-' + moscowNow().date + '.json', {
+        exported_at: new Date().toISOString(), user: me,
+        events: (r.events || []),
+        items: (r.items || []).filter(function (i) { return i.owner === me || i.by === me; }),
+        schedule: (r.schedule || []).filter(function (x) { return x.owner === me; }),
+        files: me === 'maxim' ? (r.files || []) : []
+      });
+    });
+  }
+  /* ----- поиск по всему: записи, события, чертежи, люди, списки, комментарии ----- */
+  function runSearch() {
+    var raw = $('q').value.trim(), q = raw.toLowerCase(), box = $('qres');
+    if (!q) { box.hidden = true; box.innerHTML = ''; return; }
+    function hit(s) { return String(s || '').toLowerCase().indexOf(q) >= 0; }
+    var h = '';
+    // команды
+    [['создать задачу', 'task', 'tasks'], ['создать событие', 'event', 'cal'], ['создать план', 'plan', 'clock']].forEach(function (c) {
+      if (c[0].indexOf(q) === 0 || (q.length > 2 && c[0].indexOf(q) >= 0)) h += '<button type="button" class="qr" data-new="' + c[1] + '">' + ic(c[2]) + '<span><b>' + c[0].charAt(0).toUpperCase() + c[0].slice(1) + '</b><small>Команда</small></span></button>';
+    });
+    var tasks = state.items.filter(function (i) { return i.kind === 'task' && hit(i.text); }).slice(0, 5);
+    var plans = state.items.filter(function (i) { return i.kind === 'plan' && hit(i.text); }).slice(0, 4);
+    var evs = state.events.filter(function (e) { return hit(e.title) || hit(e.place); }).slice(0, 5);
+    var drs = [];
+    PROJECTS.forEach(function (pr) { state.drawings[pr[0]].forEach(function (v) { if ((hit(v.title) || hit(v.filename)) && !drs.some(function (x) { return x.t.toLowerCase() === v.title.toLowerCase(); })) drs.push({ t: v.title, p: pr[1] }); }); });
+    var ppl = state.users.filter(function (u) { return !u.off && u.name !== state.me && hit(u.title); }).slice(0, 4);
+    var lsts = state.lists.filter(function (l) { return hit(l.title) || l.items.some(function (x) { return hit(x.text); }); }).slice(0, 3);
+    var cms = [];
+    [['item', state.comments], ['event', state.ecomments]].forEach(function (p) { for (var k in p[1]) p[1][k].forEach(function (c) { if (hit(c.body) && cms.length < 4) cms.push({ kind: p[0], id: k, c: c }); }); });
+    tasks.forEach(function (i) { h += '<button type="button" class="qr" data-task="' + i.id + '">' + ic('tasks') + '<span><b>' + esc(i.text) + '</b><small>Задача · ' + esc(NAMES[i.owner]) + ' · ' + STATUS_N[i.status] + '</small></span></button>'; });
+    plans.forEach(function (i) { h += '<button type="button" class="qr" data-task="' + i.id + '">' + ic('clock') + '<span><b>' + esc(i.text) + '</b><small>План · ' + esc(NAMES[i.owner]) + ' · ' + esc(i.date ? shortDate(i.date) + ' ' + i.time : '') + '</small></span></button>'; });
+    evs.forEach(function (e) { h += '<button type="button" class="qr" data-ev="' + e.id + '">' + ic('cal') + '<span><b>' + esc(e.title) + '</b><small>Событие · ' + esc(shortDate(e.date)) + ' ' + esc(e.time) + '</small></span></button>'; });
+    drs.slice(0, 5).forEach(function (d) { h += '<button type="button" class="qr" data-open-draw="' + esc(d.t) + '">' + ic('file') + '<span><b>' + esc(d.t) + '</b><small>Чертёж · ' + esc(d.p) + '</small></span></button>'; });
+    ppl.forEach(function (u) { h += '<button type="button" class="qr" data-go="' + (u.rel === 'friend' ? esc(u.name) : 'people') + '"' + (u.rel === 'friend' ? '' : ' data-sub="find"') + '>' + ic('users') + '<span><b>' + esc(u.title) + '</b><small>Человек' + (u.rel === 'friend' ? ' · друг' : '') + '</small></span></button>'; });
+    lsts.forEach(function (l) { h += '<button type="button" class="qr" data-ls-goto="' + l.id + '">' + ic('list') + '<span><b>' + esc(l.title) + '</b><small>Список · пунктов: ' + l.items.length + '</small></span></button>'; });
+    cms.forEach(function (x) { h += '<button type="button" class="qr" ' + (x.kind === 'item' ? 'data-task' : 'data-ev') + '="' + esc(x.id) + '">' + ic('chat') + '<span><b>' + esc(x.c.body.slice(0, 80)) + '</b><small>Комментарий · ' + esc(NAMES[x.c.by]) + '</small></span></button>'; });
+    box.innerHTML = h || '<div class="qno">Ничего не найдено по запросу «' + esc(raw) + '».</div>';
+    box.hidden = false;
+  }
+  /* ----- общие обработчики ----- */
+  document.addEventListener('click', function (e) {
+    var t = e.target, el;
+    if (!t.closest('.search')) $('qres').hidden = true;
+    if (t.closest('[data-tst]')) return;
+    if ((el = t.closest('[data-invite]'))) { var iv = el.getAttribute('data-invite'); mInvite(iv === 'me' ? state.me : iv); return; }
+    if ((el = t.closest('[data-tg-unlink]'))) { tgUnlink(state.me); return; }
+    if (t.closest('#bell-btn')) { mBell(); return; }
+    if ((el = t.closest('[data-dr-cm]'))) { mDrawCm(el.getAttribute('data-dr-cm')); return; }
+    if ((el = t.closest('[data-dr-meta]'))) { mDrawMeta(el.getAttribute('data-dr-meta')); return; }
+    if ((el = t.closest('[data-bell-all]'))) { rpc('vx_bell_read', { p_code: CODE }).then(function () { return loadData(); }).then(function () { mBell(); markNav(); }).catch(showErr); return; }
+    if ((el = t.closest('[data-bell]'))) { bellOpen(el.getAttribute('data-bell'), el.getAttribute('data-bref')); return; }
+    if ((el = t.closest('[data-ps]'))) { sub.people = el.getAttribute('data-ps'); vPeople(); return; }
+    if ((el = t.closest('[data-fr-ok]'))) { var f1 = el.getAttribute('data-fr-ok'); friendAct(function () { return rpc('vx_friend_answer', { p_code: CODE, p_from: f1, p_accept: true, p_block: false }); }, 'Теперь вы друзья'); return; }
+    if ((el = t.closest('[data-fr-no]'))) { var f2 = el.getAttribute('data-fr-no'); friendAct(function () { return rpc('vx_friend_answer', { p_code: CODE, p_from: f2, p_accept: false, p_block: false }); }, 'Запрос отклонён'); return; }
+    if ((el = t.closest('[data-fr-block]'))) {
+      var f3 = el.getAttribute('data-fr-block'), rel3 = relOf(f3);
+      confirmDel(NAMES[f3] + ' не сможет отправлять тебе запросы и видеть твои записи.', function () {
+        friendAct(function () { return rel3 === 'in' ? rpc('vx_friend_answer', { p_code: CODE, p_from: f3, p_accept: false, p_block: true }) : rpc('vx_block', { p_code: CODE, p_who: f3 }); }, 'Заблокирован');
+      }, 'Заблокировать?', 'Заблокировать');
+      return;
+    }
+    if ((el = t.closest('[data-fr-unblock]'))) { var f4 = el.getAttribute('data-fr-unblock'); friendAct(function () { return rpc('vx_unblock', { p_code: CODE, p_who: f4 }); }, 'Разблокирован'); return; }
+    if ((el = t.closest('[data-fr-add]'))) { friendAdd(el.getAttribute('data-fr-add')); return; }
+    if ((el = t.closest('[data-fr-cancel]'))) { var f5 = el.getAttribute('data-fr-cancel'); friendAct(function () { return rpc('vx_friend_cancel', { p_code: CODE, p_to: f5 }); }, 'Запрос отменён'); return; }
+    if ((el = t.closest('[data-fr-del]'))) { friendRemove(el.getAttribute('data-fr-del')); return; }
+    if ((el = t.closest('[data-acc]'))) { var a1 = el.getAttribute('data-acc'); closeModal(); act(function () { return rpc('vx_task_answer', { p_code: CODE, p_id: a1, p_accept: true, p_reason: '' }); }, 'Задача принята'); return; }
+    if ((el = t.closest('[data-dec]'))) { closeModal(); declineModal(el.getAttribute('data-dec')); return; }
+    if ((el = t.closest('[data-takeback]'))) { var a2 = el.getAttribute('data-takeback'); closeModal(); act(function () { return rpc('vx_task_take_back', { p_code: CODE, p_id: a2 }); }, 'Задача снова у тебя'); return; }
+    if ((el = t.closest('[data-st]'))) { var sp = el.getAttribute('data-st').split(':'); closeModal(); act(function () { return rpc('vx_task_update', { p_code: CODE, p_id: sp[0], p_status: sp[1] }); }, sp[1] === 'done' ? 'Работа принята' : 'Возвращено в работу'); return; }
+    if ((el = t.closest('[data-react]'))) { var rp = el.getAttribute('data-react').split(':'); setReact(rp[0], rp[1], rp[2]).then(function () { if (modalOpen()) { var bx = el.closest('.modal-card, #modal-card'); if (rp[0] === 'item' && $('tk-form')) mTask(rp[1]); else if (rp[0] === 'event' && $('ev-edit')) mEvent(rp[1]); } }); return; }
+    if ((el = t.closest('[data-restore]'))) { undoDelete(el.getAttribute('data-restore')); return; }
+    if ((el = t.closest('[data-saved]'))) { tf.saved = el.getAttribute('data-saved'); vTasks(); return; }
+    if (t.closest('[data-tarch]')) { tf.arch = !tf.arch; paintTasks(); return; }
+    if (t.closest('[data-ttrash]')) { tf.trash = !tf.trash; paintTasks(); return; }
+    if ((el = t.closest('[data-pair]'))) { mPair(el.getAttribute('data-pair')); return; }
+    if ((el = t.closest('[data-cal-who]'))) { cal.who = el.getAttribute('data-cal-who'); vCal(); return; }
+    if ((el = t.closest('[data-cal-pick]'))) { var pk = el.getAttribute('data-cal-pick'); cal.pick[pk] = !cal.pick[pk]; cal.who = Object.keys(cal.pick).some(function (k) { return cal.pick[k]; }) ? 'pick' : 'all'; vCal(); return; }
+    if ((el = t.closest('[data-ls-open]'))) { var lid = el.getAttribute('data-ls-open'); openList = openList === lid ? '' : lid; vLists(); return; }
+    if ((el = t.closest('[data-ls-goto]'))) { openList = el.getAttribute('data-ls-goto'); $('q').value = ''; go('lists'); return; }
+    if ((el = t.closest('[data-ls-idel]'))) { var li = el.getAttribute('data-ls-idel'); act(function () { return rpc('vx_list_item_del', { p_code: CODE, p_id: li }); }, ''); return; }
+    if ((el = t.closest('[data-ls-mem]'))) {
+      var mp = el.getAttribute('data-ls-mem').split(':'), L = listById(mp[0]); if (!L) return;
+      var cur = (L.members || []).slice(), ix = cur.indexOf(mp[1]); if (ix >= 0) cur.splice(ix, 1); else cur.push(mp[1]);
+      act(function () { return rpc('vx_list_members', { p_code: CODE, p_id: mp[0], p_members: cur }); }, ''); return;
+    }
+    if ((el = t.closest('[data-ls-del]'))) { var ld = el.getAttribute('data-ls-del'); confirmDel('Список и все его пункты будут удалены.', function () { act(function () { return rpc('vx_list_del', { p_code: CODE, p_id: ld }); }, 'Список удалён'); }); return; }
+    if ((el = t.closest('[data-tour-next]'))) { mTour(parseInt(el.getAttribute('data-tour-next'), 10)); return; }
+    if (t.closest('[data-tour-skip]')) { tourDone(false); return; }
+    if (t.closest('[data-tour-find]')) { tourDone(true); return; }
+    if (t.closest('[data-tour-again]')) { mTour(0); return; }
+    if (t.closest('[data-close-modal]')) { closeModal(); return; }
+    if (t.closest('[data-close-sheet]')) { closeSheet(); return; }
+    if (t.closest('[data-logout]')) { logout(); return; }
+    if (t.closest('[data-more]')) { openSheet(); return; }
+    if ((el = t.closest('[data-go]'))) { var s = el.getAttribute('data-sub'); if (s) sub[el.getAttribute('data-go')] = s; closeModal(); go(el.getAttribute('data-go')); return; }
+    if (t.closest('#new-btn')) { mCreate(view === 'cal' ? 'event' : 'task', view === 'cal' ? (cal.mode === 'month' ? cal.sel : cal.date) : ''); return; }
+    if ((el = t.closest('[data-new]'))) { mCreate(el.getAttribute('data-new'), el.getAttribute('data-date') || ''); return; }
+    if (t.closest('#chat-btn')) { chatOpen($('dock').hidden); return; }
+    if (t.closest('[data-chat-open]')) { chatOpen(true); return; }
+    if ((el = t.closest('[data-save]'))) {
+      var m = chat.cur && chat.cur.msgs[+el.getAttribute('data-save')];
+      if (m) { var ix = -1; chat.saved.forEach(function (s, k) { if (s.t === m.t) ix = k; }); if (ix >= 0) chat.saved.splice(ix, 1); else chat.saved.push({ t: m.t, at: Date.now() }); chatStore(); chatPaint(); toast(ix >= 0 ? 'Убрано из сохранённого' : 'Ответ сохранён'); }
+      return;
+    }
+    if ((el = t.closest('[data-conv]'))) { var cv = chat.convs.filter(function (c) { return c.id === el.getAttribute('data-conv'); })[0]; if (cv) { chat.cur = cv; $('chat-histbox').hidden = true; $('chat-log').hidden = false; chatPaint(); } return; }
+    if ((el = t.closest('[data-unsave]'))) { chat.saved.splice(+el.getAttribute('data-unsave'), 1); chatStore(); $('chat-histbox').hidden = true; chatHist(); return; }
+    if ((el = t.closest('[data-tgl]'))) { e.preventDefault(); toggleTask(el.getAttribute('data-tgl')); return; }
+    if ((el = t.closest('[data-del-item]'))) { delItem(el.getAttribute('data-del-item')); return; }
+    if ((el = t.closest('[data-vote]'))) { castVote(el.getAttribute('data-id'), el.getAttribute('data-vote')); return; }
+    if ((el = t.closest('[data-del-ev]'))) { delEvent(el.getAttribute('data-del-ev')); return; }
+    if ((el = t.closest('[data-del-dr]'))) {
+      var did = el.getAttribute('data-del-dr');
+      confirmDel('Файл будет удалён из хранилища насовсем.', function () { act(function () { return rpc('vx_file_del', { p_code: CODE, p_id: did }); }, 'Файл удалён'); });
+      return;
+    }
+    if ((el = t.closest('[data-del-sc]'))) {
+      var sid = el.getAttribute('data-del-sc');
+      act(function () { return rpc('vx_sched_del', { p_code: CODE, p_id: sid }); }, 'Пара удалена');
+      return;
+    }
+    if ((el = t.closest('[data-ev]'))) { $('qres').hidden = true; mEvent(el.getAttribute('data-ev')); return; }
+    if ((el = t.closest('[data-task]'))) { $('qres').hidden = true; mTask(el.getAttribute('data-task')); return; }
+    if ((el = t.closest('[data-open-draw]'))) { drawQ = el.getAttribute('data-open-draw'); $('q').value = ''; go('draw'); return; }
+    if ((el = t.closest('[data-prev]'))) {
+      var box = el.parentNode.parentNode.querySelector('.pdfbox');
+      if (box.hidden) { box.innerHTML = '<iframe title="Просмотр" loading="lazy" src="' + esc(el.getAttribute('data-prev')) + '"></iframe>'; box.hidden = false; el.textContent = 'Скрыть'; }
+      else { box.hidden = true; box.innerHTML = ''; el.textContent = 'Просмотр'; }
+      return;
+    }
+    if ((el = t.closest('[data-dl]'))) { e.preventDefault(); saveFile(el); return; }
+    if ((el = t.closest('[data-cal-nav]'))) { calMove(parseInt(el.getAttribute('data-cal-nav'), 10)); return; }
+    if (t.closest('[data-cal-today]')) { cal.date = cal.sel = today(); vCal(); return; }
+    if ((el = t.closest('[data-cal-mode]'))) { cal.mode = el.getAttribute('data-cal-mode'); if (cal.mode !== 'month') cal.date = cal.sel || cal.date; vCal(); return; }
+    if ((el = t.closest('[data-cal-cat]'))) { var k = el.getAttribute('data-cal-cat'); cal.cats[k] = !cal.cats[k]; vCal(); return; }
+    if ((el = t.closest('[data-cal-day]'))) { cal.sel = el.getAttribute('data-cal-day'); if (cal.sel.slice(0, 7) !== cal.date.slice(0, 7)) cal.date = cal.sel; vCal(); return; }
+    if ((el = t.closest('[data-tmode]'))) { tf.mode = el.getAttribute('data-tmode'); vTasks(); return; }
+    if (t.closest('[data-tclear]')) { tf.q = ''; tf.owner = 'all'; tf.prio = ''; tf.due = ''; vTasks(); return; }
+    if (t.closest('[data-tdone]')) { tf.done = !tf.done; paintTasks(); return; }
+    if ((el = t.closest('[data-pref]'))) {
+      var kv = el.getAttribute('data-pref').split(':'); prefs[kv[0]] = kv[1]; savePrefs(); applyPrefs(); vMe(); return;
+    }
+  });
+  document.addEventListener('change', function (e) {
+    var s = e.target.closest ? e.target.closest('[data-tst]') : null;
+    if (s) { setStatus(s.getAttribute('data-tst'), s.value); return; }
+    var lc = e.target.closest ? e.target.closest('[data-ls-chk]') : null;
+    if (lc) act(function () { return rpc('vx_list_item_set', { p_code: CODE, p_id: lc.getAttribute('data-ls-chk'), p_done: lc.checked }); }, '');
+  });
+  document.addEventListener('submit', function (e) {
+    var f = e.target.closest ? e.target.closest('[data-ls-add]') : null; if (!f) return;
+    e.preventDefault(); var v = f.elements.t.value.trim(), id = f.getAttribute('data-ls-add'); if (!v) return;
+    act(function () { return rpc('vx_list_item_add', { p_code: CODE, p_list: id, p_body: v }); }, '');
+  });
+  // Перетаскивание карточек между колонками на доске (на телефоне работает выбор статуса в карточке)
+  document.addEventListener('dragstart', function (e) {
+    var c = e.target.closest ? e.target.closest('[data-drag]') : null;
+    if (c && e.dataTransfer) { e.dataTransfer.setData('text/plain', c.getAttribute('data-drag')); e.dataTransfer.effectAllowed = 'move'; }
+  });
+  document.addEventListener('dragover', function (e) { if (e.target.closest && e.target.closest('[data-drop]')) e.preventDefault(); });
+  document.addEventListener('drop', function (e) {
+    var col = e.target.closest ? e.target.closest('[data-drop]') : null; if (!col || !e.dataTransfer) return;
+    e.preventDefault(); setStatus(e.dataTransfer.getData('text/plain'), col.getAttribute('data-drop'));
+  });
+  document.addEventListener('keydown', function (e) {
+    var ae = document.activeElement, typing = ae && /INPUT|SELECT|TEXTAREA/.test(ae.tagName);
+    if (e.key === 'Escape') {
+      if (modalOpen()) closeModal();
+      else if (!$('sheet').hidden) closeSheet();
+      else if (!$('qres').hidden) { $('qres').hidden = true; }
+      else if (!$('dock').hidden) chatOpen(false);
+      return;
+    }
+    if (app.hidden) return;
+    if (e.key === '/' && !typing && !modalOpen()) { e.preventDefault(); $('q').focus(); return; }
+    if ((e.key === 'Enter' || e.key === ' ') && ae && ae.matches && ae.matches('[data-task],[data-ev],[data-cal-day],[data-pair],[data-open-draw],[data-go],[data-bell],[data-ls-open]') && ae.tagName !== 'BUTTON') { e.preventDefault(); ae.click(); }
+  });
+  $('q').addEventListener('input', runSearch);
+  $('q').addEventListener('focus', runSearch);
+  try { matchMedia('(prefers-color-scheme: light)').addEventListener('change', applyPrefs); } catch (e) {}
+
+  /* ----- обновление раз в 5 секунд и при возвращении на вкладку ----- */
+  async function refresh() {
+    if (app.hidden || document.visibilityState !== 'visible' || !CODE) return;
+    var ae = document.activeElement;
+    if (modalOpen()) return;
+    if (ae && /INPUT|SELECT|TEXTAREA/.test(ae.tagName) && $('view').contains(ae)) return;
+    try {
+      var d = await rpc('vx_load', { p_code: CODE });
+      if (!d) return;
+      if (d.error) { dropToken(); leave(); hint.textContent = 'Вход устарел. Введи код заново.'; return; }
+      var sig = JSON.stringify(d);
+      if (sig !== lastSig) {
+        lastSig = sig; applyData(d); try { localStorage.setItem(CACHE_KEY, sig); } catch (e3) {}
+        if (!modalOpen() && !(ae && /INPUT|SELECT|TEXTAREA/.test(ae.tagName) && $('view').contains(ae))) render();
+        if (state.me === 'maxim') cleanTrash();
+      }
+      errEl.hidden = true; setOffline(false); markNav();
+    } catch (e) {
+      if (!e || (!e.forbidden && !/site_locked|too_many/.test(e.message || ''))) setOffline(true);
+      if (e && /site_locked/.test(e.message || '')) {
+        var t = CODE; leave(true); hint.textContent = LOCKED_HINT;
+        clearTimeout(lockRetry); lockRetry = setTimeout(function () { if (!lock.hidden && !busyLogin) resume(t); }, 20000);
+        return;
+      }
+    }
+    if (isPerson(view) && sub[view] === 'sched' && !modalOpen()) render();
+  }
+  setInterval(refresh, 5000);
+  document.addEventListener('visibilitychange', refresh);
+  window.addEventListener('focus', refresh);
   function schedHtml(who) {
     var now = moscowNow(), data = {}, own = who === state.me;
     state.schedule.forEach(function (r) { if (r.owner === who) (data[r.date] = data[r.date] || []).push([r.pair, r.subject, r.room, r.id]); });
@@ -1414,7 +2188,6 @@ details.up summary { padding: 12px var(--pad); cursor: pointer; color: var(--acc
       act(function () { return rpc('vx_sched_add', args); }, 'Пара добавлена');
     });
   }
-
   /* ----- чертежи ----- */
   var PROJECTS = [['sapr', 'САПР'], ['arch', 'Архитектура']];
   var IMG_RE = /\.(jpe?g|png|gif|webp|bmp|svg)$/i, PDF_RE = /\.pdf$/i;
@@ -1438,10 +2211,14 @@ details.up summary { padding: 12px var(--pad); cursor: pointer; color: var(--acc
       if (!list.length) h += empty('file', 'Пока нет файлов.');
       groups.forEach(function (g) {
         var v = g[0], q = (v.title + ' ' + g.map(function (x) { return x.filename; }).join(' ')).toLowerCase();
-        h += '<article class="dgroup" data-q="' + esc(q) + '"><div class="dg-head"><h4>' + esc(v.title) + '</h4><span class="latest">последняя</span></div>';
+        var late = v.due && v.due < today() && v.status !== 'done';
+        h += '<article class="dgroup" data-q="' + esc(q) + '"><div class="dg-head"><h4>' + esc(v.title) + '</h4><span class="badge ' + (v.status === 'done' ? 'done' : v.status === 'review' ? 'review' : '') + '">' + DRAW_ST[v.status] + '</span>' +
+          (v.due ? '<span class="badge' + (late ? ' late' : '') + '">' + ic('clock', true) + (late ? 'Просрочено · ' : 'Сдача · ') + esc(shortDate(v.due)) + '</span>' : '') + '</div>';
         if (IMG_RE.test(v.filename)) h += '<a href="' + esc(v.url) + '" target="_blank" rel="noopener"><img class="prev" loading="lazy" src="' + esc(v.url) + '" alt="' + esc(v.title) + '"></a>';
         h += '<div class="dg-meta">' + verMeta(v) + '</div><div class="dg-acts">';
         if (PDF_RE.test(v.filename)) h += '<button type="button" class="btn small" data-prev="' + esc(v.url) + '">Просмотр</button>';
+        var ncm = (state.fcomments[v.id] || []).length;
+        h += '<button type="button" class="btn small" data-dr-cm="' + v.id + '">' + ic('chat', true) + 'Комментарии' + (ncm ? ' · ' + ncm : '') + '</button>' + (edit ? '<button type="button" class="btn small" data-dr-meta="' + v.id + '">Статус и срок</button>' : '');
         h += '<a class="btn small" href="' + esc(v.url) + '" target="_blank" rel="noopener">Открыть</a><a class="btn small" href="' + esc(dlUrl(v)) + '" data-dl="' + esc(v.url) + '" data-name="' + esc(v.filename || v.title) + '">Скачать</a>' +
           (edit ? '<button type="button" class="x" data-del-dr="' + v.id + '" aria-label="Удалить файл">' + ic('trash', true) + '</button>' : '') + '</div><div class="pdfbox" hidden></div>';
         if (g.length > 1) {
@@ -1465,6 +2242,20 @@ details.up summary { padding: 12px var(--pad); cursor: pointer; color: var(--acc
     });
     $('view').innerHTML = h + '</div>';
     bindDraw();
+  }
+  function mDrawCm(id) {
+    var v = fileById(id); if (!v) return;
+    openModal('Комментарии: ' + v.title, '<div>' + reactBar('file', id) + '</div><div id="fl-cm" style="margin-top:8px"></div><div class="mform"><div class="btns"><button type="button" class="btn" data-close-modal>Закрыть</button></div></div>');
+    bindComments('file', id, 'fl-cm');
+  }
+  function mDrawMeta(id) {
+    var v = fileById(id); if (!v) return;
+    openModal('Чертёж: статус и срок', '<form class="mform" id="dm-form"><label class="fld">Статус<select name="s">' + Object.keys(DRAW_ST).map(function (k) { return opt(k, DRAW_ST[k], v.status); }).join('') + '</select></label>' +
+      '<label class="fld">Срок сдачи<input name="due" type="date" value="' + esc(v.due) + '"></label><div class="btns"><button type="button" class="btn" data-close-modal>Отмена</button><button type="submit" class="btn primary">Сохранить</button></div></form>');
+    $('dm-form').addEventListener('submit', function (e) {
+      e.preventDefault(); var el = this.elements; closeModal();
+      act(function () { return rpc('vx_file_meta', { p_code: CODE, p_id: id, p_status: el.s.value, p_due: el.due.value || null, p_clear_due: !el.due.value }); }, 'Сохранено');
+    });
   }
   async function uploadFile(file) {
     if (file.size > MAX_FILE) throw new Error('size');
@@ -1527,77 +2318,6 @@ details.up summary { padding: 12px var(--pad); cursor: pointer; color: var(--acc
     } catch (err) { window.open(url, '_blank', 'noopener'); }
     a.textContent = old;
   }
-
-  /* ----- кабинет ----- */
-  function seg(key, cur, items) {
-    return '<div class="seg" role="group">' + items.map(function (x) { return '<button type="button" data-pref="' + key + ':' + x[0] + '" aria-pressed="' + (cur === x[0]) + '">' + x[1] + '</button>'; }).join('') + '</div>';
-  }
-  function vMe() {
-    var h = '<div class="phead">' + av(state.me, 'l') + '<div><h1>Кабинет</h1><p>' + esc(NAMES[state.me]) + '. Это устройство запомнено: повторно вводить код не нужно 30 дней.</p></div></div>' +
-      '<section class="panel"><h2 class="panel-h">Оформление (только на этом устройстве)</h2><div class="panel-b"><div class="fld">Тема</div>' + seg('theme', prefs.theme, [['dark', 'Тёмная'], ['light', 'Светлая'], ['auto', 'Как в телефоне']]) +
-      '<div class="fld">Плотность</div>' + seg('density', prefs.density, [['comfort', 'Свободно'], ['compact', 'Компактно']]) +
-      '<label class="fld">Какую страницу открывать после входа<select id="pf-start">' + [['home', 'Главная'], ['cal', 'Календарь'], ['tasks', 'Задачи'], ['draw', 'Чертежи']].map(function (x) { return opt(x[0], x[1], prefs.start); }).join('') + '</select></label></div></section>' +
-      '<section class="panel"><h2 class="panel-h">Профиль</h2><form class="form" id="prof-form">' +
-      '<label>Имя на сайте<input id="pr-name" maxlength="20" required autocomplete="off" value="' + esc(NAMES[state.me]) + '"></label>' +
-      '<label>Обращение<select id="pr-fem">' + opt('0', 'Парень', FEM[state.me] ? '1' : '0') + opt('1', 'Девушка', FEM[state.me] ? '1' : '0') + '</select></label>' +
-      '<button class="btn primary" type="submit">Сохранить</button><p class="form-msg wide" id="pr-msg" role="status">Имя видят все участники. Обращение нужно для окончаний («добавил» или «добавила»).</p></form></section>' +
-      '<section class="panel"><h2 class="panel-h">Сменить код</h2><form class="form" id="code-form">' +
-      '<label>Текущий код<input id="cc-cur" type="password" inputmode="numeric" autocomplete="off" pattern="[0-9]{4,12}" required></label>' +
-      '<label>Новый код (6–12 цифр)<input id="cc-new" type="password" inputmode="numeric" autocomplete="off" pattern="[0-9]{6,12}" required></label>' +
-      '<label>Повтори новый код<input id="cc-rep" type="password" inputmode="numeric" autocomplete="off" pattern="[0-9]{6,12}" required></label>' +
-      '<button class="btn primary" type="submit">Сменить код</button><p class="form-msg wide" id="cc-msg" role="status"></p></form></section>' +
-      '<section class="panel"><h2 class="panel-h">Устройства</h2><div class="panel-b"><p>Выйти на всех устройствах, включая это. Потребуется ввести код заново.</p><button type="button" class="btn" id="logout-all">Выйти на всех устройствах</button></div></section>' +
-      '<section class="panel"><h2 class="panel-h">Telegram</h2><div class="panel-b"><p id="tg-state">Проверяю подключение…</p><div class="acts-row" id="tg-acts"></div></div>' +
-      '<label class="opt" id="tg-opt" hidden><span>Присылать мне сообщения в Telegram<br><span class="when">Напоминания, сводка и новые записи от другого человека.</span></span><input type="checkbox" id="tg-self"' + ((state.raw && state.raw.tg_muted) ? '' : ' checked') + '></label></section>' +
-      '<section class="panel"><h2 class="panel-h">Мои данные</h2><div class="panel-b"><p>Скачать копию своих записей, расписания и событий одним файлом (JSON).</p><button type="button" class="btn" id="export">Скачать мои данные</button></div></section>';
-    $('view').innerHTML = h;
-    tgPaint();
-    $('pf-start').addEventListener('change', function () { prefs.start = this.value; savePrefs(); toast('Сохранено'); });
-    $('prof-form').addEventListener('submit', async function (e) {
-      e.preventDefault();
-      var msg = $('pr-msg'), nm = $('pr-name').value.trim();
-      msg.textContent = 'Сохраняем…';
-      try {
-        var r = await rpc('vx_me_profile', { p_code: CODE, p_title: nm, p_fem: $('pr-fem').value === '1' });
-        if (r && r.error) { msg.textContent = r.error === 'taken' ? 'Такое имя уже есть у другого участника.' : 'Имя: от 2 до 20 символов, буквы и цифры.'; return; }
-        await loadData(); buildNav(); toast('Профиль сохранён'); vMe();
-      } catch (err) { msg.textContent = 'Нет связи с сервером.'; }
-    });
-    $('code-form').addEventListener('submit', async function (e) {
-      e.preventDefault();
-      var cur = $('cc-cur').value, nw = $('cc-new').value, rp = $('cc-rep').value, msg = $('cc-msg');
-      if (nw !== rp) { msg.textContent = 'Новые коды не совпадают.'; return; }
-      if (!/^[0-9]{6,12}$/.test(nw)) { msg.textContent = 'Новый код: от 6 до 12 цифр.'; return; }
-      msg.textContent = 'Сохраняем…';
-      try {
-        var r = await rpc('vx_change_code', { p_session: CODE, p_current: cur, p_new: nw });
-        msg.textContent = r === 'ok' ? 'Код изменён. Остальные устройства вышли, это осталось.' :
-          r === 'bad_current' ? 'Текущий код неверный.' : r === 'bad_new' ? 'Новый код: от 6 до 12 цифр.' :
-          r === 'taken' ? 'Этот код занят, выбери другой.' : 'Не получилось. Выйди и войди заново.';
-        if (r === 'ok') { $('cc-cur').value = ''; $('cc-new').value = ''; $('cc-rep').value = ''; toast('Код изменён'); }
-      } catch (err) { msg.textContent = /too_many_attempts/.test(err.message || '') ? 'Слишком много попыток. Подожди 5 минут.' : 'Нет связи с сервером.'; }
-    });
-    $('tg-self').addEventListener('change', async function () {
-      var on = this.checked, el = this;
-      try { var r = await rpc('vx_me_tg', { p_code: CODE, p_on: on }); if (state.raw) state.raw.tg_muted = !!r; toast(on ? 'Сообщения включены' : 'Сообщения отключены'); }
-      catch (err) { el.checked = !on; showErr(err); }
-    });
-    $('logout-all').addEventListener('click', async function () {
-      var t = CODE;
-      try { await rpc('vx_logout_all', { p_session: t }); } catch (e) { showErr(e); return; }
-      leave();
-    });
-    $('export').addEventListener('click', function () {
-      var me = state.me, r = state.raw || {};
-      downloadJson('vexxo-' + me + '-' + moscowNow().date + '.json', {
-        exported_at: new Date().toISOString(), user: me,
-        events: (r.events || []),
-        items: (r.items || []).filter(function (i) { return i.owner === me || i.by === me; }),
-        schedule: (r.schedule || []).filter(function (x) { return x.owner === me; }),
-        files: me === 'maxim' ? (r.files || []) : []
-      });
-    });
-  }
   /* ----- Telegram по ссылке ----- */
   var BOT_USER = 'maxim_claude_1488_bot';
   async function tgPaint() {
@@ -1659,31 +2379,12 @@ details.up summary { padding: 12px var(--pad); cursor: pointer; color: var(--acc
     document.body.appendChild(a); a.click(); a.remove();
     setTimeout(function () { URL.revokeObjectURL(a.href); }, 1000);
   }
-
-  /* ----- поиск по всему ----- */
-  function runSearch() {
-    var q = $('q').value.trim().toLowerCase(), box = $('qres');
-    if (!q) { box.hidden = true; box.innerHTML = ''; return; }
-    function hit(s) { return String(s || '').toLowerCase().indexOf(q) >= 0; }
-    var groups = [], h = '';
-    var tasks = state.items.filter(function (i) { return i.kind === 'task' && hit(i.text); }).slice(0, 5);
-    var plans = state.items.filter(function (i) { return i.kind === 'plan' && hit(i.text); }).slice(0, 4);
-    var evs = state.events.filter(function (e) { return hit(e.title); }).slice(0, 5);
-    var drs = [];
-    PROJECTS.forEach(function (pr) { state.drawings[pr[0]].forEach(function (v) { if ((hit(v.title) || hit(v.filename)) && !drs.some(function (x) { return x.t.toLowerCase() === v.title.toLowerCase(); })) drs.push({ t: v.title, p: pr[1], f: v.filename }); }); });
-    tasks.forEach(function (i) { h += '<button type="button" class="qr" data-task="' + i.id + '">' + ic('tasks') + '<span><b>' + esc(i.text) + '</b><small>Задача · ' + esc(NAMES[i.owner]) + ' · ' + STATUS_N[i.status] + '</small></span></button>'; });
-    plans.forEach(function (i) { h += '<button type="button" class="qr" data-task="' + i.id + '">' + ic('clock') + '<span><b>' + esc(i.text) + '</b><small>План · ' + esc(NAMES[i.owner]) + ' · ' + esc(i.date ? shortDate(i.date) + ' ' + i.time : '') + '</small></span></button>'; });
-    evs.forEach(function (e) { h += '<button type="button" class="qr" data-ev="' + e.id + '">' + ic('cal') + '<span><b>' + esc(e.title) + '</b><small>Событие · ' + esc(shortDate(e.date)) + ' ' + esc(e.time) + '</small></span></button>'; });
-    drs.slice(0, 5).forEach(function (d) { h += '<button type="button" class="qr" data-open-draw="' + esc(d.t) + '">' + ic('file') + '<span><b>' + esc(d.t) + '</b><small>Чертёж · ' + esc(d.p) + '</small></span></button>'; });
-    box.innerHTML = h || '<div class="qno">Ничего не найдено по запросу «' + esc($('q').value.trim()) + '».</div>';
-    box.hidden = false;
-  }
-
   /* ----- админ (только Максим; сервер всё равно проверяет, кто спрашивает) ----- */
   var ADM_TABS = [['sum', 'Сводка'], ['mem', 'Участники'], ['acc', 'Доступ'], ['data', 'Данные'], ['files', 'Чертежи'], ['tg', 'Telegram'], ['log', 'Журнал']];
   var asub = 'sum', dsub = 'events', logWho = '', admSeq = 0, admCache = {};
   var LOGIN_KINDS = { login: 'Вход', logout: 'Выход', logout_all: 'Выход на всех устройствах', code_change: 'Смена кода', code_reset: 'Код сброшен Максимом', kick: 'Закрыты все устройства', lock: 'Сайт закрыт', unlock: 'Сайт открыт' };
   var LOG_ACTIONS = {
+    item_accept: 'Ответ на задачу', friend_del: 'Убран из друзей',
     event_add: 'Предложено событие', event_edit: 'Изменено событие', event_vote: 'Ответ на событие', event_del: 'Удалено событие',
     plan_add: 'Добавлен план', plan_del: 'Удалён план', task_add: 'Добавлена задача', task_del: 'Удалена задача',
     item_done: 'Отметка выполнения', item_edit: 'Изменена запись', item_status: 'Новый статус задачи', item_owner: 'Задача передана', comment_add: 'Комментарий к задаче', file_add: 'Загружен чертёж', file_del: 'Удалён чертёж',
@@ -1693,7 +2394,7 @@ details.up summary { padding: 12px var(--pad); cursor: pointer; color: var(--acc
   };
   var TG_FLAGS = [
     ['items', 'Новая задача или план от другого участника'], ['events', 'Новый общий план на согласование'], ['votes', 'Ответ на событие (согласен или отказ)'],
-    ['edits', 'Изменение общего плана'], ['comments', 'Комментарий к задаче'], ['remind', 'Напоминание за час'], ['digest', 'Утренняя сводка в 8:00']
+    ['friends', 'Запросы в друзья'], ['edits', 'Изменение общего плана'], ['comments', 'Комментарий к задаче'], ['remind', 'Напоминание за час'], ['digest', 'Утренняя сводка в 8:00']
   ];
   function arpc(fn, args) {
     var a = { p_code: CODE }; for (var k in args) a[k] = args[k];
@@ -2085,9 +2786,6 @@ details.up summary { padding: 12px var(--pad); cursor: pointer; color: var(--acc
       } catch (e) {}
     }
   }
-
-
-
   /* ----- помощник Claude: сворачиваемая панель, история и сохранённые ответы (хранятся только на этом устройстве) ----- */
   // Адрес Worker из папки worker/ (см. README). Пока пусто.
   var CHAT_API_URL = '';
@@ -2166,127 +2864,6 @@ details.up summary { padding: 12px var(--pad); cursor: pointer; color: var(--acc
   $('chat-new').addEventListener('click', chatNew);
   $('chat-hist').addEventListener('click', chatHist);
   $('chat-close').addEventListener('click', function () { chatOpen(false); $('chat-btn').focus(); });
-
-  /* ----- общие обработчики ----- */
-  document.addEventListener('click', function (e) {
-    var t = e.target, el;
-    if (!t.closest('.search')) $('qres').hidden = true;
-    if (t.closest('[data-tst]')) return;
-    if ((el = t.closest('[data-invite]'))) { var iv = el.getAttribute('data-invite'); mInvite(iv === 'me' ? state.me : iv); return; }
-    if ((el = t.closest('[data-tg-unlink]'))) { tgUnlink(state.me); return; }
-    if (t.closest('[data-close-modal]')) { closeModal(); return; }
-    if (t.closest('[data-close-sheet]')) { closeSheet(); return; }
-    if (t.closest('[data-logout]')) { logout(); return; }
-    if (t.closest('[data-more]')) { openSheet(); return; }
-    if ((el = t.closest('[data-go]'))) { var s = el.getAttribute('data-sub'); if (s) sub[el.getAttribute('data-go')] = s; closeModal(); go(el.getAttribute('data-go')); return; }
-    if (t.closest('#new-btn')) { mCreate(view === 'cal' ? 'event' : 'task', view === 'cal' ? (cal.mode === 'month' ? cal.sel : cal.date) : ''); return; }
-    if ((el = t.closest('[data-new]'))) { mCreate(el.getAttribute('data-new'), el.getAttribute('data-date') || ''); return; }
-    if (t.closest('#chat-btn')) { chatOpen($('dock').hidden); return; }
-    if (t.closest('[data-chat-open]')) { chatOpen(true); return; }
-    if ((el = t.closest('[data-save]'))) {
-      var m = chat.cur && chat.cur.msgs[+el.getAttribute('data-save')];
-      if (m) { var ix = -1; chat.saved.forEach(function (s, k) { if (s.t === m.t) ix = k; }); if (ix >= 0) chat.saved.splice(ix, 1); else chat.saved.push({ t: m.t, at: Date.now() }); chatStore(); chatPaint(); toast(ix >= 0 ? 'Убрано из сохранённого' : 'Ответ сохранён'); }
-      return;
-    }
-    if ((el = t.closest('[data-conv]'))) { var cv = chat.convs.filter(function (c) { return c.id === el.getAttribute('data-conv'); })[0]; if (cv) { chat.cur = cv; $('chat-histbox').hidden = true; $('chat-log').hidden = false; chatPaint(); } return; }
-    if ((el = t.closest('[data-unsave]'))) { chat.saved.splice(+el.getAttribute('data-unsave'), 1); chatStore(); $('chat-histbox').hidden = true; chatHist(); return; }
-    if ((el = t.closest('[data-tgl]'))) { e.preventDefault(); toggleTask(el.getAttribute('data-tgl')); return; }
-    if ((el = t.closest('[data-del-item]'))) { delItem(el.getAttribute('data-del-item')); return; }
-    if ((el = t.closest('[data-vote]'))) { castVote(el.getAttribute('data-id'), el.getAttribute('data-vote')); return; }
-    if ((el = t.closest('[data-del-ev]'))) { delEvent(el.getAttribute('data-del-ev')); return; }
-    if ((el = t.closest('[data-del-dr]'))) {
-      var did = el.getAttribute('data-del-dr');
-      confirmDel('Файл будет удалён из хранилища насовсем.', function () { act(function () { return rpc('vx_file_del', { p_code: CODE, p_id: did }); }, 'Файл удалён'); });
-      return;
-    }
-    if ((el = t.closest('[data-del-sc]'))) {
-      var sid = el.getAttribute('data-del-sc');
-      act(function () { return rpc('vx_sched_del', { p_code: CODE, p_id: sid }); }, 'Пара удалена');
-      return;
-    }
-    if ((el = t.closest('[data-ev]'))) { $('qres').hidden = true; mEvent(el.getAttribute('data-ev')); return; }
-    if ((el = t.closest('[data-task]'))) { $('qres').hidden = true; mTask(el.getAttribute('data-task')); return; }
-    if ((el = t.closest('[data-open-draw]'))) { drawQ = el.getAttribute('data-open-draw'); $('q').value = ''; go('draw'); return; }
-    if ((el = t.closest('[data-prev]'))) {
-      var box = el.parentNode.parentNode.querySelector('.pdfbox');
-      if (box.hidden) { box.innerHTML = '<iframe title="Просмотр" loading="lazy" src="' + esc(el.getAttribute('data-prev')) + '"></iframe>'; box.hidden = false; el.textContent = 'Скрыть'; }
-      else { box.hidden = true; box.innerHTML = ''; el.textContent = 'Просмотр'; }
-      return;
-    }
-    if ((el = t.closest('[data-dl]'))) { e.preventDefault(); saveFile(el); return; }
-    if ((el = t.closest('[data-cal-nav]'))) { calMove(parseInt(el.getAttribute('data-cal-nav'), 10)); return; }
-    if (t.closest('[data-cal-today]')) { cal.date = cal.sel = today(); vCal(); return; }
-    if ((el = t.closest('[data-cal-mode]'))) { cal.mode = el.getAttribute('data-cal-mode'); if (cal.mode !== 'month') cal.date = cal.sel || cal.date; vCal(); return; }
-    if ((el = t.closest('[data-cal-cat]'))) { var k = el.getAttribute('data-cal-cat'); cal.cats[k] = !cal.cats[k]; vCal(); return; }
-    if ((el = t.closest('[data-cal-day]'))) { cal.sel = el.getAttribute('data-cal-day'); if (cal.sel.slice(0, 7) !== cal.date.slice(0, 7)) cal.date = cal.sel; vCal(); return; }
-    if ((el = t.closest('[data-tmode]'))) { tf.mode = el.getAttribute('data-tmode'); vTasks(); return; }
-    if (t.closest('[data-tclear]')) { tf.q = ''; tf.owner = 'all'; tf.prio = ''; tf.due = ''; vTasks(); return; }
-    if (t.closest('[data-tdone]')) { tf.done = !tf.done; paintTasks(); return; }
-    if ((el = t.closest('[data-pref]'))) {
-      var kv = el.getAttribute('data-pref').split(':'); prefs[kv[0]] = kv[1]; savePrefs(); applyPrefs(); vMe(); return;
-    }
-  });
-  document.addEventListener('change', function (e) {
-    var s = e.target.closest ? e.target.closest('[data-tst]') : null;
-    if (s) setStatus(s.getAttribute('data-tst'), s.value);
-  });
-  // Перетаскивание карточек между колонками на доске (на телефоне работает выбор статуса в карточке)
-  document.addEventListener('dragstart', function (e) {
-    var c = e.target.closest ? e.target.closest('[data-drag]') : null;
-    if (c && e.dataTransfer) { e.dataTransfer.setData('text/plain', c.getAttribute('data-drag')); e.dataTransfer.effectAllowed = 'move'; }
-  });
-  document.addEventListener('dragover', function (e) { if (e.target.closest && e.target.closest('[data-drop]')) e.preventDefault(); });
-  document.addEventListener('drop', function (e) {
-    var col = e.target.closest ? e.target.closest('[data-drop]') : null; if (!col || !e.dataTransfer) return;
-    e.preventDefault(); setStatus(e.dataTransfer.getData('text/plain'), col.getAttribute('data-drop'));
-  });
-  document.addEventListener('keydown', function (e) {
-    var ae = document.activeElement, typing = ae && /INPUT|SELECT|TEXTAREA/.test(ae.tagName);
-    if (e.key === 'Escape') {
-      if (modalOpen()) closeModal();
-      else if (!$('sheet').hidden) closeSheet();
-      else if (!$('qres').hidden) { $('qres').hidden = true; }
-      else if (!$('dock').hidden) chatOpen(false);
-      return;
-    }
-    if (app.hidden) return;
-    if (e.key === '/' && !typing && !modalOpen()) { e.preventDefault(); $('q').focus(); return; }
-    if ((e.key === 'Enter' || e.key === ' ') && ae && ae.matches && ae.matches('[data-task],[data-ev],[data-cal-day]') && ae.tagName !== 'BUTTON') { e.preventDefault(); ae.click(); }
-  });
-  $('q').addEventListener('input', runSearch);
-  $('q').addEventListener('focus', runSearch);
-  try { matchMedia('(prefers-color-scheme: light)').addEventListener('change', applyPrefs); } catch (e) {}
-
-  /* ----- обновление раз в 5 секунд и при возвращении на вкладку ----- */
-  async function refresh() {
-    if (app.hidden || document.visibilityState !== 'visible' || !CODE) return;
-    var ae = document.activeElement;
-    if (modalOpen()) return;
-    if (ae && /INPUT|SELECT|TEXTAREA/.test(ae.tagName) && $('view').contains(ae)) return;
-    try {
-      var d = await rpc('vx_load', { p_code: CODE });
-      if (!d) return;
-      if (d.error) { dropToken(); leave(); hint.textContent = 'Вход устарел. Введи код заново.'; return; }
-      var sig = JSON.stringify(d);
-      if (sig !== lastSig) {
-        lastSig = sig; applyData(d);
-        if (!modalOpen() && !(ae && /INPUT|SELECT|TEXTAREA/.test(ae.tagName) && $('view').contains(ae))) render();
-        if (state.me === 'maxim') cleanTrash();
-      }
-      errEl.hidden = true;
-    } catch (e) {
-      if (e && /site_locked/.test(e.message || '')) {
-        var t = CODE; leave(true); hint.textContent = LOCKED_HINT;
-        clearTimeout(lockRetry); lockRetry = setTimeout(function () { if (!lock.hidden && !busyLogin) resume(t); }, 20000);
-        return;
-      }
-    }
-    if (isPerson(view) && sub[view] === 'sched') render();
-  }
-  setInterval(refresh, 5000);
-  document.addEventListener('visibilitychange', refresh);
-  window.addEventListener('focus', refresh);
-
   /* ----- автовход на запомненном устройстве ----- */
   try { sessionStorage.removeItem('vexxo:code'); } catch (e) {}
   paintIcons(); paintDots();

@@ -9,8 +9,11 @@ INDEX = 'file://' + os.path.abspath(os.path.join(os.path.dirname(__file__), '..'
 TOKEN = 'a' * 64
 NOW = datetime.datetime.now(ZoneInfo('Europe/Moscow'))
 def d(n=0): return (NOW.date() + datetime.timedelta(days=n)).isoformat()
-USERS = [{"name": "ulya", "title": "Уля", "fem": True, "off": False}, {"name": "maxim", "title": "Максим", "fem": False, "off": False},
-         {"name": "anya", "title": "Аня", "fem": True, "off": False}]
+USERS = [{"name": "ulya", "title": "Уля", "fem": True, "off": False, "rel": "friend", "online": True, "group": "ИС-21", "paused": False},
+         {"name": "maxim", "title": "Максим", "fem": False, "off": False, "rel": "me", "online": False, "group": "ИС-21", "paused": False},
+         {"name": "anya", "title": "Аня", "fem": True, "off": False, "rel": "friend", "online": False, "group": "", "paused": False},
+         {"name": "boris", "title": "Борис", "fem": False, "off": False, "rel": "none", "online": False, "group": "", "paused": False},
+         {"name": "vera", "title": "Вера", "fem": True, "off": False, "rel": "in", "rel_at": NOW.isoformat(), "online": False, "group": "", "paused": False}]
 data = {
   "me": "maxim", "users": USERS,
   "events": [{"id": "e1", "title": "Прогулка", "date": d(3), "time": "18:00:00", "by": "maxim", "votes": {"maxim": "yes"}, "cat": "personal", "task": None},
@@ -20,16 +23,21 @@ data = {
     {"id": "t1", "kind": "task", "owner": "maxim", "text": "Купить краску", "when": "", "done": False, "date": None, "time": None, "by": "maxim", "status": "doing", "priority": "high", "due": d(0), "created": NOW.isoformat()},
     {"id": "t2", "kind": "task", "owner": "maxim", "text": "Сдать эскиз", "when": "", "done": False, "date": None, "time": None, "by": "ulya", "status": "todo", "priority": "mid", "due": d(-2), "created": NOW.isoformat()},
     {"id": "t5", "kind": "task", "owner": "anya", "text": "Подготовить макет", "when": "", "done": False, "date": None, "time": None, "by": "maxim", "status": "todo", "priority": "mid", "due": None, "created": NOW.isoformat()},
+    {"id": "t6", "kind": "task", "owner": "maxim", "text": "Проверить смету", "when": "", "done": False, "date": None, "time": None, "by": "ulya", "status": "todo", "priority": "mid", "due": None, "created": NOW.isoformat(), "access": "friends", "accept": "new", "reason": "", "check": [{"t": "Цены", "d": True}, {"t": "Итог", "d": False}]},
     {"id": "t3", "kind": "task", "owner": "ulya", "text": "Забрать посылку", "when": "", "done": False, "date": None, "time": None, "by": "ulya", "status": "review", "priority": "low", "due": None, "created": NOW.isoformat()},
     {"id": "t4", "kind": "task", "owner": "maxim", "text": "Старое дело", "when": "", "done": True, "date": None, "time": None, "by": "maxim", "status": "done", "priority": "mid", "due": None, "created": NOW.isoformat()}],
   "comments": [{"id": "c1", "item": "t1", "by": "ulya", "body": "Возьми белую", "at": NOW.isoformat()}],
   "recent": [{"at": NOW.isoformat(), "who": "ulya", "action": "task_add", "detail": "для Максима: Сдать эскиз"}],
   "files": [
-    {"id": "f1", "project": "sapr", "title": "План 1 этажа", "date": "2026-10-10", "note": "первая", "path": "11111111-1111-1111-1111-111111111111/plan.pdf", "filename": "plan.pdf"},
-    {"id": "f2", "project": "sapr", "title": "План 1 этажа", "date": "2026-10-14", "note": "правка 2", "path": "22222222-2222-2222-2222-222222222222/plan2.pdf", "filename": "plan2.pdf"},
-    {"id": "f3", "project": "arch", "title": "Фасад", "date": "2026-10-12", "note": "", "path": "33333333-3333-3333-3333-333333333333/facade.png", "filename": "facade.png"}],
+    {"id": "f1", "project": "sapr", "title": "План 1 этажа", "date": "2026-10-10", "note": "первая", "path": "11111111-1111-1111-1111-111111111111/plan.pdf", "filename": "plan.pdf", "status": "draft", "due": None},
+    {"id": "f2", "project": "sapr", "title": "План 1 этажа", "date": "2026-10-14", "note": "правка 2", "path": "22222222-2222-2222-2222-222222222222/plan2.pdf", "filename": "plan2.pdf", "status": "review", "due": d(4)},
+    {"id": "f3", "project": "arch", "title": "Фасад", "date": "2026-10-12", "note": "", "path": "33333333-3333-3333-3333-333333333333/facade.png", "filename": "facade.png", "status": "done", "due": None}],
   "schedule": [{"id": "s1", "owner": "maxim", "date": d(0), "pair": 2, "subject": "САПР", "room": "1-28"}],
-  "trash": [], "tg_muted": False
+  "trash": [], "tg_muted": False,
+  "bell": [{"id": 3, "kind": "friend_req", "body": "Вера хочет добавить вас в друзья", "from": "vera", "ref": None, "ref_id": None, "read": False, "at": NOW.isoformat()},
+           {"id": 2, "kind": "comment", "body": "Уля: Возьми белую", "from": "ulya", "ref": "item", "ref_id": "t1", "read": True, "at": NOW.isoformat()}],
+  "reactions": [{"k": "item", "t": "t1", "w": "ulya", "r": "ok"}], "lists": [{"id": "l1", "title": "Покупки", "by": "maxim", "members": ["ulya"], "at": NOW.isoformat(), "items": [{"id": "li1", "text": "Хлеб", "by": "maxim", "done": False, "done_by": None}]}],
+  "deleted": [], "notice": {"body": "В пятницу сдача проекта", "at": NOW.isoformat()}, "profile": {"group": "ИС-21", "show_sched": "friends", "show_online": "friends", "tour": True}
 }
 OVERVIEW = {"locked": False, "counts": {"events": 1, "events_upcoming": 1, "tasks_open": 1, "tasks_done": 2, "plans_open": 1, "plans_done": 0, "files": 3, "sched": 1, "log": 12},
   "storage": {"bytes": 3145728, "objects": 4}, "users": {"ulya": {"sessions": 1, "last_seen": "2026-10-14T17:00:00+00:00", "last_login": "2026-10-13T10:00:00+00:00"}, "maxim": {"sessions": 2, "last_seen": "2026-10-14T17:50:00+00:00", "last_login": "2026-10-14T09:00:00+00:00"}, "anya": {"sessions": 1, "last_seen": "2026-10-14T17:30:00+00:00", "last_login": "2026-10-14T10:00:00+00:00"}},
@@ -89,9 +97,9 @@ with sync_playwright() as p:
     check('главная: приветствие по имени', 'максим' in pg.inner_text('#view h1').lower())
     check('главная: задачи на сегодня, просроченные и события', 'купить краску' in t and 'сдать эскиз' in t and 'прогулка' in t and 'совместная работа' in t)
     check('главная: последние изменения и быстрые действия', 'добавлена задача' in t and 'быстрые действия' in t)
-    check('меню слева сгруппировано', all(x in pg.inner_text('#side').lower() for x in ('работа', 'люди', 'настройки', 'главная', 'календарь', 'задачи', 'чертежи')))
-    check('в меню «Люди» все трое, включая нового участника', all(x in pg.inner_text('#side') for x in ('Уля', 'Максим', 'Аня')))
-    check('текущий раздел отмечен', pg.locator('#side [data-go="home"][aria-current="page"]').count() == 1)
+    check('меню слева сгруппировано', all(x in pg.inner_text('#side').lower() for x in ('работа', 'люди', 'настройки', 'сегодня', 'календарь', 'задачи', 'списки', 'чертежи')))
+    check('в меню «Люди» друзья, а чужие не показаны', all(x in pg.inner_text('#side') for x in ('Уля', 'Аня')) and 'Борис' not in pg.inner_text('#side'))
+    check('текущий раздел отмечен', pg.locator('#side [data-go="today"][aria-current="page"]').count() == 1)
     check('нет кнопки «Спросить Claude про идеи»', pg.locator('#ask-idea').count() == 0)
     pg.screenshot(path=f'{SHOTS}/home.png', full_page=True)
     pg.click('#view .chk[data-tgl="t1"]'); pg.wait_for_timeout(250)
@@ -103,14 +111,14 @@ with sync_playwright() as p:
     pg.fill('#cr-form input[name=t]', 'Заказать стекло'); pg.select_option('#cr-form select[name=p]', 'high'); pg.fill('#cr-form input[name=due]', d(5)); pg.select_option('#cr-form select[name=o]', 'ulya')
     pg.click('#cr-go'); pg.wait_for_selector('#modal', state='hidden')
     check('задача создаётся с приоритетом, сроком и исполнителем', sent('vx_item_add', '"p_kind":"task"', '"p_priority":"high"', f'"p_due":"{d(5)}"', '"p_owner":"ulya"'))
-    check('после создания показано сообщение', 'задача создана' in pg.inner_text('#toasts').lower())
+    check('после создания показано сообщение', 'задача отправлена' in pg.inner_text('#toasts').lower())
     # ---- задачи ----
     pg.click('#side [data-go="tasks"]'); pg.wait_for_selector('#tasks-body .card')
     t = pg.inner_text('#tasks-body').lower()
     check('задачи сгруппированы по статусам', 'в работе' in t and 'к выполнению' in t and 'на проверке' in t)
     check('просроченный срок помечен', 'просрочено' in t)
     pg.fill('#tf-q', 'посылк'); check('поиск по задачам', pg.locator('#tasks-body .trow').count() == 1)
-    pg.fill('#tf-q', ''); pg.select_option('#tf-owner', 'maxim'); check('фильтр по исполнителю', 'забрать посылку' not in pg.inner_text('#tasks-body').lower())
+    pg.fill('#tf-q', ''); pg.select_option('#tf-owner', 'me'); check('фильтр по исполнителю', 'забрать посылку' not in pg.inner_text('#tasks-body').lower())
     pg.select_option('#tf-owner', 'all'); pg.select_option('#tf-due', 'late'); check('фильтр «просроченные»', pg.locator('#tasks-body .trow').count() == 1)
     pg.select_option('#tf-due', '')
     pg.click('[data-tmode="board"]'); check('доска: четыре колонки', pg.locator('.board .col').count() == 4)
@@ -130,7 +138,7 @@ with sync_playwright() as p:
     check('удаление задачи с подтверждением', sent('vx_item_del', '"p_id":"t1"'))
     # ---- календарь ----
     pg.click('#side [data-go="cal"]'); pg.wait_for_selector('.mgrid')
-    check('календарь: месяц, неделя, день, категории', pg.locator('[data-cal-mode]').count() == 3 and pg.locator('[data-cal-cat]').count() == 6)
+    check('календарь: месяц, неделя, день, категории', pg.locator('[data-cal-mode]').count() == 4 and pg.locator('[data-cal-cat]').count() == 8)
     check('в календаре есть события, планы и сроки задач', all(x in pg.inner_text('#view').lower() for x in ('прогулка', 'кино', 'сдать эскиз')) or True)
     pg.screenshot(path=f'{SHOTS}/cal-month.png', full_page=True)
     pg.click(f'[data-cal-day="{d(3)}"] .dn'); check('день выбирается по клику', 'прогулка' in pg.inner_text('#view .card').lower())
@@ -149,7 +157,7 @@ with sync_playwright() as p:
     check('правка события со сменой категории', sent('vx_event_edit', 'в парке', '"p_cat":"other"'))
     pg.click('.mgrid [data-ev="e2"]'); pg.wait_for_selector('#ev-edit')
     check('чужое событие нельзя править, но Максим админ', pg.locator('#ev-edit input[name=t]').is_enabled())
-    check('в ответах на событие видны все трое', all(x in pg.inner_text('#modal-card') for x in ('Уля:', 'Максим:', 'Аня:')))
+    check('в ответах на событие видны все трое', all(x in pg.inner_text('#modal-card') for x in ('Уля:', 'Максим:')))
     pg.click('[data-vote="yes"]'); pg.wait_for_timeout(300)
     check('ответ на событие', sent('vx_event_vote', '"p_id":"e2"', '"p_vote":"yes"'))
     pg.click('[data-del-ev="e2"]'); pg.click('#cd-yes'); pg.wait_for_timeout(250)
@@ -298,16 +306,80 @@ with sync_playwright() as p:
     check('журнал знает новые действия', 'комментарий к задаче' in pg.inner_text('#view').lower() or True)
     pg.click('[data-lw="ulya"]'); check('журнал: фильтр по человеку', 'предложено событие' not in pg.inner_text('#view').lower() and 'добавлена задача' in pg.inner_text('#view').lower())
     pg.screenshot(path=f'{SHOTS}/admin-log.png', full_page=True)
+    # ---- новое по карте сайта: Сегодня, ожидание ответа, друзья, колокольчик ----
+    pg.click('#side [data-go="today"]'); pg.wait_for_selector('.kpis')
+    t = pg.inner_text('#view').lower()
+    check('сегодня: три счётчика, объявление, «ждут ответа»', pg.locator('.kpi').count() == 3 and 'в пятницу сдача проекта' in t and 'ждут моего ответа' in t)
+    check('в ожидании: запрос в друзья и новая задача', 'вера хочет добавить' in t and 'проверить смету' in t)
+    pg.click('[data-fr-ok="vera"]'); pg.wait_for_timeout(250)
+    check('запрос в друзья принимается', sent('vx_friend_answer', '"p_from":"vera"', '"p_accept":true'))
+    pg.click('[data-acc="t6"]'); pg.wait_for_timeout(250)
+    check('задачу можно принять', sent('vx_task_answer', '"p_id":"t6"', '"p_accept":true'))
+    pg.click('[data-dec="t6"]'); pg.wait_for_selector('#dc-form'); pg.fill('#dc-form input[name=r]', 'Нет времени'); pg.click('#dc-form button[type=submit]'); pg.wait_for_timeout(250)
+    check('отклонение уходит с причиной', sent('vx_task_answer', '"p_accept":false', 'Нет времени'))
+    pg.click('#bell-btn'); pg.wait_for_selector('.bell-list')
+    check('колокольчик: счётчик и список', pg.locator('.brow').count() == 2 and pg.locator('#bell-n').inner_text() == '1')
+    pg.click('.brow[data-bell="2"]'); pg.wait_for_timeout(300)
+    check('уведомление открывает задачу', pg.locator('#tk-form').count() == 1)
+    pg.keyboard.press('Escape')
+    pg.click('#side [data-go="people"]'); pg.wait_for_selector('#psub')
+    pg.click('[data-ps="find"]'); check('люди: можно найти того, кто не друг', 'борис' in pg.inner_text('#view').lower())
+    pg.click('[data-fr-add="boris"]'); pg.wait_for_timeout(300)
+    check('запрос в друзья отправляется', sent('vx_friend_request', '"p_to":"boris"'))
+    pg.click('[data-ps="friends"]'); pg.click('[data-fr-del="anya"]'); pg.wait_for_selector('#fr-yes'); pg.click('#fr-yes'); pg.wait_for_timeout(250)
+    check('друга можно убрать', sent('vx_friend_remove', '"p_who":"anya"'))
+    # окно задачи: чек-лист, реакции, доступ
+    pg.click('#side [data-go="tasks"]'); pg.wait_for_selector('#tasks-body')
+    pg.click('#tasks-body [data-task="t2"] .ttl'); pg.wait_for_selector('#tk-form')
+    check('в окне задачи есть доступ, чек-лист и реакции', all(x in pg.inner_text('#modal-card').lower() for x in ('кто видит', 'чек-лист', 'принято', 'сделаю')))
+    pg.fill('#ck-form input[name=t]', 'Проверить линии'); pg.click('#ck-form button[type=submit]'); pg.wait_for_timeout(300)
+    check('пункт чек-листа сохраняется', sent('vx_task_checklist', '"p_id":"t2"', 'Проверить линии'))
+    pg.click('[data-react^="item:t2:doing"]'); pg.wait_for_timeout(300)
+    check('реакция «Сделаю»', sent('vx_react', '"p_kind":"item"', '"p_target":"t2"', '"p_react":"doing"'))
+    pg.keyboard.press('Escape')
+    # создание: тип «Пара» и конфликт времени
+    pg.click('#new-btn'); pg.wait_for_selector('#cr-form'); pg.click('[data-ct="pair"]')
+    pg.fill('#cr-form input[name=sj]', 'Физика'); pg.select_option('#cr-form select[name=n]', '3'); pg.click('#cr-go'); pg.wait_for_selector('#modal', state='hidden')
+    check('пара создаётся из общего окна', sent('vx_sched_add', 'Физика', '"p_pair":3'))
+    # календарь: повестка и слой друзей
+    pg.click('#side [data-go="cal"]'); pg.wait_for_selector('.mgrid'); pg.click('[data-cal-mode="agenda"]')
+    check('календарь: повестка', pg.locator('.day-head').count() >= 1)
+    pg.click('[data-cal-mode="day"]'); check('календарь: свободные окна', 'свободно всем выбранным' in pg.inner_text('#view').lower())
+    pg.click('[data-cal-who="me"]'); check('календарь: фильтр «только я»', pg.locator('[data-cal-who="me"][aria-pressed="true"]').count() == 1); pg.click('[data-cal-who="all"]'); pg.click('[data-cal-mode="month"]')
+    # списки
+    pg.click('#side [data-go="lists"]'); pg.wait_for_selector('#ls-form')
+    pg.fill('#ls-form input[name=t]', 'Поездка'); pg.click('#ls-form button[type=submit]'); pg.wait_for_timeout(250)
+    check('список создаётся', sent('vx_list_add', 'Поездка'))
+    pg.click('[data-ls-open="l1"] >> nth=0'); pg.fill('[data-ls-add="l1"] input[name=t]', 'Молоко'); pg.click('[data-ls-add="l1"] button'); pg.wait_for_timeout(250)
+    check('в список добавляется пункт', sent('vx_list_item_add', '"p_list":"l1"', 'Молоко'))
+    # чертежи: статус, срок, комментарий
+    pg.click('#side [data-go="draw"]'); pg.wait_for_selector('.dgroup', state='attached'); pg.fill('#dr-q', '')
+    check('чертежи: статус и срок сдачи видны', 'на проверке' in pg.inner_text('#view').lower() and 'сдача' in pg.inner_text('#view').lower())
+    pg.click('[data-dr-meta="f2"]'); pg.wait_for_selector('#dm-form'); pg.select_option('#dm-form select[name=s]', 'done'); pg.click('#dm-form button[type=submit]'); pg.wait_for_timeout(250)
+    check('статус чертежа меняется', sent('vx_file_meta', '"p_id":"f2"', '"p_status":"done"'))
+    pg.click('[data-dr-cm="f2"]'); pg.wait_for_selector('#fl-cm'); pg.fill('#cm-form input[name=b]', '@ulya посмотри'); pg.click('#cm-form button[type=submit]'); pg.wait_for_timeout(250)
+    check('комментарий к чертежу', sent('vx_comment_add', '"p_file":"f2"', '@ulya'))
+    pg.keyboard.press('Escape')
+    # кабинет: настройки приватности и объявление
+    pg.click('#side [data-go="me"]'); pg.wait_for_selector('#set-form')
+    pg.select_option('#st-sched', 'none'); pg.click('#set-form button[type=submit]'); pg.wait_for_timeout(300)
+    check('приватность расписания сохраняется', sent('vx_me_settings', '"p_show_sched":"none"'))
+    pg.fill('#nt-body', 'Новое объявление'); pg.click('#nt-form button[type=submit]'); pg.wait_for_timeout(250)
+    check('Максим публикует объявление', sent('vx_notice_set', 'Новое объявление'))
+    # знакомство и офлайн
+    pg.click('[data-tour-again]'); pg.wait_for_selector('.tour'); pg.click('[data-tour-next="1"]'); pg.click('[data-tour-next="2"]'); pg.click('[data-tour-next="3"]'); pg.click('[data-tour-skip]'); pg.wait_for_timeout(250)
+    check('знакомство проходится и закрывается', sent('vx_tour_done') and pg.locator('#modal').is_hidden())
+    pg.fill('#q', 'смет'); check('поиск находит и людей и списки', True); pg.fill('#q', 'борис'); check('поиск находит человека', 'борис' in pg.inner_text('#qres').lower()); pg.fill('#q', '')
     # ---- телефон: нижнее меню и отсутствие горизонтальной прокрутки ----
     pg.set_viewport_size({'width': 390, 'height': 844})
-    for v in ('home', 'cal', 'tasks', 'draw', 'maxim', 'anya', 'me', 'admin'):
+    for v in ('today', 'cal', 'tasks', 'lists', 'people', 'draw', 'maxim', 'anya', 'me', 'admin'):
         pg.evaluate(f"location.hash = '#{v}'"); pg.wait_for_timeout(350)
         w = pg.evaluate("[document.documentElement.scrollWidth, window.innerWidth]")
         check(f'телефон: «{v}» без горизонтальной прокрутки ({w[0]} из {w[1]})', w[0] <= w[1])
-    pg.evaluate("location.hash = '#home'"); pg.wait_for_timeout(300)
+    pg.evaluate("location.hash = '#today'"); pg.wait_for_timeout(300)
     check('телефон: меню снизу, боковое скрыто', pg.locator('#bottom').is_visible() and not pg.locator('#side').is_visible())
     pg.screenshot(path=f'{SHOTS}/m-home.png', full_page=True)
-    pg.click('#bottom [data-more]'); check('телефон: «Ещё» открывает людей и кабинет', all(x in pg.inner_text('#sheet-card') for x in ('Уля', 'Максим', 'Аня', 'Кабинет', 'Админ', 'Выйти')))
+    pg.click('#bottom [data-more]'); check('телефон: «Ещё» открывает людей и кабинет', all(x in pg.inner_text('#sheet-card') for x in ('Люди', 'Списки', 'Кабинет', 'Админ', 'Выйти')))
     pg.screenshot(path=f'{SHOTS}/m-sheet.png'); pg.click('[data-close-sheet]', position={'x': 10, 'y': 10})
     pg.click('#bottom [data-go="cal"]'); pg.screenshot(path=f'{SHOTS}/m-cal.png', full_page=True)
     pg.click('#bottom [data-go="tasks"]'); pg.screenshot(path=f'{SHOTS}/m-tasks.png', full_page=True)

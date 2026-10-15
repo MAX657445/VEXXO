@@ -973,6 +973,32 @@ do $$ begin
   perform cron.schedule('vexxo-trash-items', '15 3 * * *', $c$delete from vx_item_trash where deleted_at < now() - interval '7 days'$c$);
 exception when others then null; end $$;
 
+-- ---------- Настройки Telegram: добавлен тип «друзья» ----------
+create or replace function vx_admin_set(p_code text, p_key text, p_on boolean) returns jsonb
+language plpgsql security definer set search_path = public as $$
+begin
+  if not vx_is_admin(p_code) then return jsonb_build_object('error', 'forbidden'); end if;
+  if not (p_key in ('tg_all', 'tg_items', 'tg_events', 'tg_votes', 'tg_edits', 'tg_comments', 'tg_remind', 'tg_digest', 'tg_friends', 'open_reg')
+          or (p_key like 'tg\_mute\_%' and exists (select 1 from vx_users where name = substr(p_key, 9)))) then
+    return jsonb_build_object('error', 'bad_key');
+  end if;
+  -- для tg_mute_* значение p_on = true значит «отключить этому человеку»; для остальных true значит «включено»
+  insert into vx_settings(key, value) values (p_key, case when p_on then '1' else '0' end)
+  on conflict (key) do update set value = excluded.value;
+  insert into vx_log(who, action, detail) values ('maxim', 'admin_setting', p_key || ' = ' || case when p_on then 'вкл' else 'выкл' end);
+  return vx_tg_flags();
+end $$;
+
+create or replace function vx_tg_flags() returns jsonb
+language sql stable security definer set search_path = public as $$
+  select jsonb_build_object('all', vx_flag('tg_all'), 'items', vx_flag('tg_items'), 'events', vx_flag('tg_events'), 'votes', vx_flag('tg_votes'),
+                            'edits', vx_flag('tg_edits'), 'comments', vx_flag('tg_comments'), 'remind', vx_flag('tg_remind'), 'digest', vx_flag('tg_digest'),
+                            'friends', vx_flag('tg_friends'), 'open_reg', vx_open_reg(),
+                            'mute', coalesce((select jsonb_object_agg(name, vx_muted(name)) from vx_users), '{}'::jsonb),
+                            'mute_ulya', vx_muted('ulya'), 'mute_maxim', vx_muted('maxim'))
+$$;
+revoke all on function vx_tg_flags() from public, anon, authenticated;
+
 -- ---------- Права ----------
 revoke all on function
   vx_item_add(text, text, text, text, text, date, text, text, date, text), vx_item_set(text, uuid, boolean),
